@@ -1,11 +1,30 @@
+pub mod chart;
+pub mod compare;
+pub mod csv;
+pub mod format;
 pub mod guilt;
+pub mod html;
 pub mod json;
+pub mod markdown;
 pub mod table;
 
 use colored::Colorize;
 
 use crate::data::discovery::ClaudeDataDir;
+use crate::forecast;
 use crate::models::UsageBucket;
+use crate::runtime::RuntimeConfig;
+
+pub struct DisplayOptions {
+    pub no_guilt: bool,
+    pub no_color: bool,
+    pub by_model: bool,
+    pub show_trends: bool,
+    pub show_sparklines: bool,
+    pub show_cumulative: bool,
+    pub show_efficiency: bool,
+    pub budget_co2_grams: Option<f64>,
+}
 
 pub fn print_header() {
     let border = "=".repeat(66);
@@ -45,12 +64,12 @@ pub fn print_metadata(
     println!();
 }
 
-pub fn print_summary_footer(buckets: &[UsageBucket], no_guilt: bool) {
-    if no_guilt || buckets.is_empty() {
+pub fn print_summary_footer(buckets: &[UsageBucket], opts: &DisplayOptions, rc: &RuntimeConfig) {
+    if opts.no_guilt || buckets.is_empty() {
         return;
     }
 
-    // Find overall totals
+    // Compute totals
     let total_co2: f64 = buckets.iter().map(|b| b.impact.co2_grams).sum();
     let total_water: f64 = buckets.iter().map(|b| b.impact.water_ml).sum();
     let total_energy: f64 = buckets.iter().map(|b| b.impact.energy_wh).sum();
@@ -69,12 +88,109 @@ pub fn print_summary_footer(buckets: &[UsageBucket], no_guilt: bool) {
     println!();
     println!("{}", guilt::tree_progress_bar(total_trees));
 
+    // Sparklines
+    if opts.show_sparklines && buckets.len() > 1 {
+        let co2_values: Vec<f64> = buckets.iter().map(|b| b.impact.co2_grams).collect();
+        let cost_values: Vec<f64> = buckets.iter().map(|b| b.cost.total_cost_usd).collect();
+        println!();
+        println!(
+            "  {} {}",
+            "CO2 trend:".dimmed(),
+            format::sparkline(&co2_values)
+        );
+        println!(
+            "  {} {}",
+            "Cost trend:".dimmed(),
+            format::sparkline(&cost_values)
+        );
+    }
+
+    // Budget bar
+    if let Some(budget) = opts.budget_co2_grams {
+        println!();
+        let pct = (total_co2 / budget * 100.0).min(200.0);
+        let bar_width = 30;
+        let filled = ((pct / 100.0) * bar_width as f64).round() as usize;
+        let filled = filled.min(bar_width);
+        let empty = bar_width - filled;
+        let bar_color = if pct > 90.0 {
+            "red"
+        } else if pct > 70.0 {
+            "yellow"
+        } else {
+            "green"
+        };
+        let bar = format!("[{}{}]", "#".repeat(filled), ".".repeat(empty));
+        let bar_colored = match bar_color {
+            "red" => bar.red().bold(),
+            "yellow" => bar.yellow().bold(),
+            _ => bar.green().bold(),
+        };
+        let remaining = (budget - total_co2).max(0.0);
+        println!(
+            "  {} {} {:.1}% of {} used",
+            "Carbon Budget:".bold(),
+            bar_colored,
+            pct,
+            format::format_co2(budget),
+        );
+        if remaining > 0.0 {
+            println!(
+                "  {} {}",
+                "Remaining:".dimmed(),
+                format::format_co2(remaining),
+            );
+        } else {
+            println!("  {} Budget exceeded!", "WARNING:".red().bold());
+        }
+    }
+
+    // Percentile stats
+    if buckets.len() >= 5 {
+        let mut co2_vals: Vec<f64> = buckets.iter().map(|b| b.impact.co2_grams).collect();
+        co2_vals.sort_by(|a, b| a.partial_cmp(b).unwrap());
+        let median = percentile(&co2_vals, 50.0);
+        let p95 = percentile(&co2_vals, 95.0);
+        let p99 = percentile(&co2_vals, 99.0);
+        println!();
+        println!(
+            "  {} {} {} {} {} {} {}",
+            "Median CO2/period:".dimmed(),
+            format::format_co2(median),
+            "|".dimmed(),
+            "P95:".dimmed(),
+            format::format_co2(p95),
+            "|".dimmed(),
+            format!("P99: {}", format::format_co2(p99)).dimmed(),
+        );
+    }
+
+    // Forecast
+    if buckets.len() >= 3 {
+        if let Some(fc) = forecast::project_annual(buckets) {
+            println!();
+            let trend_str = match fc.trend {
+                forecast::TrendDirection::Accelerating => "Accelerating".red().to_string(),
+                forecast::TrendDirection::Decelerating => "Decelerating".green().to_string(),
+                forecast::TrendDirection::Stable => "Stable".yellow().to_string(),
+            };
+            println!(
+                "  {} CO2: {} | Cost: {} | Trees: {:.1} | Trend: {}",
+                "Annual projection:".bold(),
+                format::format_co2(fc.annual_co2_grams),
+                format::format_cost(fc.annual_cost_usd),
+                fc.annual_trees,
+                trend_str,
+            );
+        }
+    }
+
     // Satirical comparisons
     println!();
     let comparisons = guilt::generate_comparisons(&total_impact);
     for (i, comp) in comparisons.iter().enumerate() {
         if i >= 3 {
-            break; // Max 3 comparisons
+            break;
         }
         println!("  {}", comp);
     }
@@ -87,6 +203,18 @@ pub fn print_summary_footer(buckets: &[UsageBucket], no_guilt: bool) {
     let quote = guilt::random_quote();
     println!("  {}", quote.italic().dimmed());
 
+    // Region info
+    if let Some(ref region) = rc.region {
+        println!();
+        println!(
+            "  {} {} (CO2: {} kg/kWh, PUE: {})",
+            "Region:".dimmed(),
+            region,
+            rc.co2_kg_per_kwh,
+            rc.pue,
+        );
+    }
+
     // Sources
     println!();
     println!(
@@ -98,4 +226,9 @@ pub fn print_summary_footer(buckets: &[UsageBucket], no_guilt: bool) {
         "  Luccioni et al. 2023, USDA Forestry, IEA 2024".dimmed()
     );
     println!();
+}
+
+fn percentile(sorted: &[f64], p: f64) -> f64 {
+    let idx = (p / 100.0 * (sorted.len() - 1) as f64).round() as usize;
+    sorted[idx.min(sorted.len() - 1)]
 }

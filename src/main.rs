@@ -2,26 +2,48 @@ mod aggregate;
 mod calc;
 mod cli;
 mod config;
+mod config_file;
 mod data;
+mod dateparse;
 mod display;
+mod forecast;
+mod interactive;
 mod models;
+mod runtime;
+mod sort_filter;
+mod watch;
 
 use anyhow::Result;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use clap::Parser;
 use colored::Colorize;
 
 use cli::{Args, Period};
 use data::discovery::ClaudeDataDir;
-
-fn parse_date_arg(s: &str) -> Result<DateTime<Utc>> {
-    let naive = NaiveDate::parse_from_str(s, "%Y-%m-%d")
-        .map_err(|e| anyhow::anyhow!("Invalid date '{}': {}. Use YYYY-MM-DD format.", s, e))?;
-    Ok(naive.and_hms_opt(0, 0, 0).unwrap().and_utc())
-}
+use runtime::RuntimeConfig;
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Handle shell completions early exit
+    if let Some(shell) = args.completions {
+        clap_complete::generate(
+            shell,
+            &mut <Args as clap::CommandFactory>::command(),
+            "ccguilt",
+            &mut std::io::stdout(),
+        );
+        return Ok(());
+    }
+
+    // Load config file and merge with CLI
+    let user_config = config_file::load_config();
+    let rc = RuntimeConfig::from_args_and_config(&args, &user_config);
+
+    // Apply NO_COLOR
+    if rc.no_color {
+        colored::control::set_override(false);
+    }
 
     let claude_home = match &args.claude_home {
         Some(p) => p.clone(),
@@ -40,89 +62,98 @@ fn main() -> Result<()> {
 
     let data_dir = ClaudeDataDir::new(claude_home);
 
-    let since = args.since.as_deref().map(parse_date_arg).transpose()?;
-    let until = args.until.as_deref().map(parse_date_arg).transpose()?;
+    let since = args
+        .since
+        .as_deref()
+        .map(dateparse::parse_natural_date)
+        .transpose()?;
+    let until = args
+        .until
+        .as_deref()
+        .map(dateparse::parse_natural_date)
+        .transpose()?;
+
+    // Validate flag combinations
+    if args.fast && args.group_by == Some(cli::GroupBy::Project) {
+        eprintln!(
+            "{} --group-by project is not available in fast mode (no project info).",
+            "Error:".red().bold()
+        );
+        std::process::exit(1);
+    }
 
     let records = if args.fast {
-        // Fast path: read stats-cache.json
-        let cache_path = data_dir.stats_cache_path();
-        if !cache_path.exists() {
-            eprintln!(
-                "{} stats-cache.json not found. Run Claude Code first, or use deep scan (remove --fast).",
-                "Error:".red().bold()
-            );
-            std::process::exit(1);
-        }
-
-        if args.period == Period::Session {
-            eprintln!(
-                "{} Session-level breakdown not available in fast mode.",
-                "Warning:".yellow().bold()
-            );
-            eprintln!("Use deep scan (remove --fast) for per-session data.");
-            std::process::exit(1);
-        }
-
-        eprintln!("  {} Reading stats-cache.json...", ">>".yellow().bold());
-        let fast_data = data::cache::parse_stats_cache(&cache_path)?;
-
-        match args.period {
-            Period::Total => aggregate::fast_path_total(&fast_data.model_usage),
-            _ => aggregate::fast_path_daily(&fast_data.daily_tokens, &fast_data.model_usage),
-        }
+        fast_path(&args, &data_dir, &rc)?
     } else {
-        // Deep scan: parse all JSONL files
-        let files = data_dir.jsonl_files(args.project.as_deref());
-
-        if files.is_empty() {
-            eprintln!(
-                "{} No session files found in {}",
-                "Error:".red().bold(),
-                data_dir.projects_dir().display()
-            );
-            eprintln!("Your Claude data directory exists but contains no sessions.");
-            eprintln!("Either you're a Digital Saint or something is misconfigured.");
-            std::process::exit(1);
-        }
-
-        eprintln!(
-            "  {} Deep scan: parsing {} session files...",
-            ">>".green().bold(),
-            files.len()
-        );
-
-        let records =
-            data::jsonl::parse_jsonl_files(&files, since, until, args.project.as_deref())?;
-
-        // Print scan complete
-        let total_records: usize = records.len();
-        eprintln!(
-            "  {} Found {} token records",
-            ">>".green().bold(),
-            total_records
-        );
-
-        if records.is_empty() {
-            eprintln!();
-            eprintln!("No data found in the specified range. The planet thanks you.");
-            return Ok(());
-        }
-
-        records
+        deep_scan(&args, &data_dir, since, until, &rc)?
     };
 
     if records.is_empty() {
-        eprintln!("No data found. Either you're a Digital Saint or your Claude data is elsewhere.");
+        if !rc.quiet {
+            eprintln!("No data found. Either you're a Digital Saint or your Claude data is elsewhere.");
+        }
         return Ok(());
     }
 
-    // Aggregate by period
-    let buckets = aggregate::aggregate(records, args.period);
+    // Aggregate
+    let mut buckets = match args.group_by {
+        Some(cli::GroupBy::Project) => {
+            aggregate::aggregate_by_project(records.clone(), rc.co2_kg_per_kwh, rc.pue)
+        }
+        Some(cli::GroupBy::Model) => {
+            aggregate::aggregate_by_model(records.clone(), rc.co2_kg_per_kwh, rc.pue)
+        }
+        None => aggregate::aggregate_with(records.clone(), args.period, rc.co2_kg_per_kwh, rc.pue),
+    };
 
-    // Display
+    // Sort, filter, truncate
+    if let Some(min_co2) = args.min_co2 {
+        sort_filter::filter_min_co2(&mut buckets, min_co2);
+    }
+    if let Some(min_cost) = args.min_cost {
+        sort_filter::filter_min_cost(&mut buckets, min_cost);
+    }
+    if let Some(sort_field) = args.sort {
+        sort_filter::sort_buckets(&mut buckets, sort_field);
+    }
+    if let Some(top_n) = args.top {
+        buckets.truncate(top_n);
+    }
+
+    // Build display options
+    let display_opts = display::DisplayOptions {
+        no_guilt: rc.no_guilt,
+        no_color: rc.no_color,
+        by_model: args.by_model && args.group_by != Some(cli::GroupBy::Model),
+        show_trends: rc.trends,
+        show_sparklines: rc.sparklines,
+        show_cumulative: args.cumulative,
+        show_efficiency: args.efficiency,
+        budget_co2_grams: rc.budget_co2_grams,
+    };
+
+    // Dispatch output
+    if args.interactive {
+        return interactive::run_interactive(records, buckets, display_opts, rc);
+    }
+
+    if let Some(secs) = args.watch {
+        return watch::run_watch(secs, &args, &data_dir, &rc, &display_opts);
+    }
+
     if args.json {
         let json = display::json::render_json(&buckets)?;
         println!("{json}");
+    } else if args.csv {
+        display::csv::render_csv(&buckets, &mut std::io::stdout())?;
+    } else if args.markdown {
+        display::markdown::render_markdown(&buckets, &mut std::io::stdout())?;
+    } else if let Some(ref path) = args.html {
+        let mut file = std::fs::File::create(path)?;
+        display::html::render_html(&buckets, &mut file)?;
+        if !rc.quiet {
+            eprintln!("  {} HTML report written to {}", ">>".green().bold(), path.display());
+        }
     } else {
         let file_count = if args.fast {
             1
@@ -132,9 +163,121 @@ fn main() -> Result<()> {
 
         display::print_header();
         display::print_metadata(&data_dir, file_count, args.project.as_deref(), args.fast);
-        display::table::render_table(&buckets, args.no_guilt);
-        display::print_summary_footer(&buckets, args.no_guilt);
+        display::table::render_table(&buckets, &display_opts);
+        if args.chart {
+            display::chart::render_chart(&buckets);
+        }
+        display::print_summary_footer(&buckets, &display_opts, &rc);
+    }
+
+    // Write to file if --output specified
+    if let Some(ref path) = args.output {
+        let mut file = std::fs::File::create(path)?;
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        match ext {
+            "json" => {
+                let json = display::json::render_json(&buckets)?;
+                use std::io::Write;
+                write!(file, "{json}")?;
+            }
+            "csv" => display::csv::render_csv(&buckets, &mut file)?,
+            "md" | "markdown" => display::markdown::render_markdown(&buckets, &mut file)?,
+            "html" | "htm" => display::html::render_html(&buckets, &mut file)?,
+            _ => {
+                let json = display::json::render_json(&buckets)?;
+                use std::io::Write;
+                write!(file, "{json}")?;
+            }
+        }
+        if !rc.quiet {
+            eprintln!("  {} Output written to {}", ">>".green().bold(), path.display());
+        }
     }
 
     Ok(())
+}
+
+fn fast_path(
+    args: &Args,
+    data_dir: &ClaudeDataDir,
+    rc: &RuntimeConfig,
+) -> Result<Vec<models::TokenRecord>> {
+    let cache_path = data_dir.stats_cache_path();
+    if !cache_path.exists() {
+        eprintln!(
+            "{} stats-cache.json not found. Run Claude Code first, or use deep scan (remove --fast).",
+            "Error:".red().bold()
+        );
+        std::process::exit(1);
+    }
+
+    if args.period == Period::Session {
+        eprintln!(
+            "{} Session-level breakdown not available in fast mode.",
+            "Warning:".yellow().bold()
+        );
+        eprintln!("Use deep scan (remove --fast) for per-session data.");
+        std::process::exit(1);
+    }
+
+    if !rc.quiet {
+        eprintln!("  {} Reading stats-cache.json...", ">>".yellow().bold());
+    }
+    let fast_data = data::cache::parse_stats_cache(&cache_path)?;
+
+    Ok(match args.period {
+        Period::Total => aggregate::fast_path_total(&fast_data.model_usage),
+        _ => aggregate::fast_path_daily(&fast_data.daily_tokens, &fast_data.model_usage),
+    })
+}
+
+fn deep_scan(
+    args: &Args,
+    data_dir: &ClaudeDataDir,
+    since: Option<DateTime<Utc>>,
+    until: Option<DateTime<Utc>>,
+    rc: &RuntimeConfig,
+) -> Result<Vec<models::TokenRecord>> {
+    let files = if let Some(ref pat) = args.project_regex {
+        data_dir.jsonl_files_regex(pat)?
+    } else {
+        data_dir.jsonl_files(args.project.as_deref())
+    };
+
+    if files.is_empty() {
+        eprintln!(
+            "{} No session files found in {}",
+            "Error:".red().bold(),
+            data_dir.projects_dir().display()
+        );
+        eprintln!("Your Claude data directory exists but contains no sessions.");
+        eprintln!("Either you're a Digital Saint or something is misconfigured.");
+        std::process::exit(1);
+    }
+
+    if !rc.quiet {
+        eprintln!(
+            "  {} Deep scan: parsing {} session files...",
+            ">>".green().bold(),
+            files.len()
+        );
+    }
+
+    let records =
+        data::jsonl::parse_jsonl_files(&files, since, until, args.project.as_deref())?;
+
+    if !rc.quiet {
+        eprintln!(
+            "  {} Found {} token records",
+            ">>".green().bold(),
+            records.len()
+        );
+    }
+
+    if records.is_empty() && !rc.quiet {
+        eprintln!();
+        eprintln!("No data found in the specified range. The planet thanks you.");
+    }
+
+    Ok(records)
 }

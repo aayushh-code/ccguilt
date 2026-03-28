@@ -3,16 +3,18 @@ use comfy_table::modifiers::UTF8_ROUND_CORNERS;
 use comfy_table::presets::UTF8_FULL_CONDENSED;
 use comfy_table::*;
 
+use crate::display::format::*;
+use crate::display::DisplayOptions;
 use crate::models::{GuiltLevel, UsageBucket};
 
-pub fn render_table(buckets: &[UsageBucket], no_guilt: bool) {
+pub fn render_table(buckets: &[UsageBucket], opts: &DisplayOptions) {
     let mut table = Table::new();
     table
         .load_preset(UTF8_FULL_CONDENSED)
         .apply_modifier(UTF8_ROUND_CORNERS)
         .set_content_arrangement(ContentArrangement::Dynamic);
 
-    // Header
+    // Build headers
     let mut headers = vec![
         Cell::new("Period").set_alignment(CellAlignment::Left),
         Cell::new("Tokens").set_alignment(CellAlignment::Right),
@@ -22,14 +24,51 @@ pub fn render_table(buckets: &[UsageBucket], no_guilt: bool) {
         Cell::new("Water").set_alignment(CellAlignment::Right),
         Cell::new("Trees").set_alignment(CellAlignment::Right),
     ];
-    if !no_guilt {
+    if opts.show_efficiency {
+        headers.push(Cell::new("$/Mtok").set_alignment(CellAlignment::Right));
+        headers.push(Cell::new("gCO2/Mtok").set_alignment(CellAlignment::Right));
+    }
+    if opts.show_cumulative {
+        headers.push(Cell::new("Cum. CO2").set_alignment(CellAlignment::Right));
+    }
+    if !opts.no_guilt {
         headers.push(Cell::new("Guilt").set_alignment(CellAlignment::Center));
     }
     table.set_header(headers);
 
-    for bucket in buckets {
+    // Compute trend arrows if enabled
+    let trends: Vec<&str> = if opts.show_trends && buckets.len() > 1 {
+        let mut t = vec![""];
+        for w in buckets.windows(2) {
+            let prev = w[0].impact.co2_grams;
+            let curr = w[1].impact.co2_grams;
+            if prev == 0.0 {
+                t.push("");
+            } else {
+                let change = (curr - prev) / prev;
+                if change > 0.10 {
+                    t.push(" \u{25B2}"); // ▲
+                } else if change < -0.10 {
+                    t.push(" \u{25BC}"); // ▼
+                } else {
+                    t.push(" =");
+                }
+            }
+        }
+        t
+    } else {
+        vec![""; buckets.len()]
+    };
+
+    let mut cumulative_co2 = 0.0;
+
+    for (i, bucket) in buckets.iter().enumerate() {
+        cumulative_co2 += bucket.impact.co2_grams;
+
+        let label = format!("{}{}", bucket.label, trends.get(i).unwrap_or(&""));
+
         let mut row = vec![
-            Cell::new(&bucket.label),
+            Cell::new(&label),
             Cell::new(format_tokens(bucket.tokens.total_tokens())),
             Cell::new(format_cost(bucket.cost.total_cost_usd)),
             Cell::new(format_energy(bucket.impact.energy_wh)),
@@ -37,10 +76,94 @@ pub fn render_table(buckets: &[UsageBucket], no_guilt: bool) {
             Cell::new(format_water(bucket.impact.water_ml)),
             Cell::new(format_trees(bucket.impact.trees_destroyed)),
         ];
-        if !no_guilt {
-            row.push(Cell::new(&bucket.guilt.title).fg(guilt_table_color(bucket.guilt.level)));
+        if opts.show_efficiency {
+            let mtok = bucket.tokens.total_tokens() as f64 / 1_000_000.0;
+            if mtok > 0.0 {
+                row.push(Cell::new(format!("{:.2}", bucket.cost.total_cost_usd / mtok)));
+                row.push(Cell::new(format!("{:.1}", bucket.impact.co2_grams / mtok)));
+            } else {
+                row.push(Cell::new("-"));
+                row.push(Cell::new("-"));
+            }
+        }
+        if opts.show_cumulative {
+            row.push(Cell::new(format_co2(cumulative_co2)));
+        }
+        if !opts.no_guilt && !opts.no_color {
+            row.push(
+                Cell::new(&bucket.guilt.title).fg(guilt_table_color(bucket.guilt.level)),
+            );
+        } else if !opts.no_guilt {
+            row.push(Cell::new(&bucket.guilt.title));
         }
         table.add_row(row);
+
+        // Per-model sub-rows
+        if opts.by_model {
+            for (tier, model_tokens) in &bucket.tokens.by_model {
+                let model_total = model_tokens.input_tokens
+                    + model_tokens.output_tokens
+                    + model_tokens.cache_creation_tokens
+                    + model_tokens.cache_read_tokens;
+                if model_total == 0 {
+                    continue;
+                }
+
+                let model_cost =
+                    crate::calc::cost::calculate_model_cost(model_tokens, *tier);
+                let model_summary = crate::models::TokenSummary {
+                    input_tokens: model_tokens.input_tokens,
+                    output_tokens: model_tokens.output_tokens,
+                    cache_creation_tokens: model_tokens.cache_creation_tokens,
+                    cache_read_tokens: model_tokens.cache_read_tokens,
+                    by_model: {
+                        let mut m = std::collections::HashMap::new();
+                        m.insert(*tier, model_tokens.clone());
+                        m
+                    },
+                };
+                let model_impact = crate::calc::impact::calculate_impact(&model_summary);
+
+                let mut sub_row = vec![
+                    Cell::new(format!("  {}", tier.display_name()))
+                        .fg(comfy_table::Color::DarkGrey),
+                    Cell::new(format_tokens(model_total)).fg(comfy_table::Color::DarkGrey),
+                    Cell::new(format_cost(model_cost.total_cost_usd))
+                        .fg(comfy_table::Color::DarkGrey),
+                    Cell::new(format_energy(model_impact.energy_wh))
+                        .fg(comfy_table::Color::DarkGrey),
+                    Cell::new(format_co2(model_impact.co2_grams))
+                        .fg(comfy_table::Color::DarkGrey),
+                    Cell::new(format_water(model_impact.water_ml))
+                        .fg(comfy_table::Color::DarkGrey),
+                    Cell::new(format_trees(model_impact.trees_destroyed))
+                        .fg(comfy_table::Color::DarkGrey),
+                ];
+                if opts.show_efficiency {
+                    let mtok = model_total as f64 / 1_000_000.0;
+                    if mtok > 0.0 {
+                        sub_row.push(
+                            Cell::new(format!("{:.2}", model_cost.total_cost_usd / mtok))
+                                .fg(comfy_table::Color::DarkGrey),
+                        );
+                        sub_row.push(
+                            Cell::new(format!("{:.1}", model_impact.co2_grams / mtok))
+                                .fg(comfy_table::Color::DarkGrey),
+                        );
+                    } else {
+                        sub_row.push(Cell::new("-").fg(comfy_table::Color::DarkGrey));
+                        sub_row.push(Cell::new("-").fg(comfy_table::Color::DarkGrey));
+                    }
+                }
+                if opts.show_cumulative {
+                    sub_row.push(Cell::new("").fg(comfy_table::Color::DarkGrey));
+                }
+                if !opts.no_guilt {
+                    sub_row.push(Cell::new("").fg(comfy_table::Color::DarkGrey));
+                }
+                table.add_row(sub_row);
+            }
+        }
     }
 
     // Totals row if multiple buckets
@@ -72,8 +195,27 @@ pub fn render_table(buckets: &[UsageBucket], no_guilt: bool) {
             Cell::new(format_water(total_water)).fg(comfy_table::Color::White),
             Cell::new(format_trees(total_trees)).fg(comfy_table::Color::White),
         ];
-        if !no_guilt {
-            total_row.push(Cell::new(worst_title).fg(guilt_table_color(worst_guilt)));
+        if opts.show_efficiency {
+            let mtok = total_tokens as f64 / 1_000_000.0;
+            if mtok > 0.0 {
+                total_row
+                    .push(Cell::new(format!("{:.2}", total_cost / mtok)).fg(comfy_table::Color::White));
+                total_row
+                    .push(Cell::new(format!("{:.1}", total_co2 / mtok)).fg(comfy_table::Color::White));
+            } else {
+                total_row.push(Cell::new("-").fg(comfy_table::Color::White));
+                total_row.push(Cell::new("-").fg(comfy_table::Color::White));
+            }
+        }
+        if opts.show_cumulative {
+            total_row.push(Cell::new(format_co2(total_co2)).fg(comfy_table::Color::White));
+        }
+        if !opts.no_guilt {
+            if !opts.no_color {
+                total_row.push(Cell::new(worst_title).fg(guilt_table_color(worst_guilt)));
+            } else {
+                total_row.push(Cell::new(worst_title));
+            }
         }
         table.add_row(total_row);
     }
@@ -90,81 +232,5 @@ fn guilt_table_color(level: GuiltLevel) -> comfy_table::Color {
         GuiltLevel::EcoTerrorist => comfy_table::Color::Red,
         GuiltLevel::PlanetIncinerator => comfy_table::Color::DarkRed,
         GuiltLevel::HeatDeathAccelerator => comfy_table::Color::Magenta,
-    }
-}
-
-fn format_tokens(n: u64) -> String {
-    if n >= 1_000_000_000 {
-        format!("{:.1}B", n as f64 / 1e9)
-    } else if n >= 1_000_000 {
-        format!("{:.1}M", n as f64 / 1e6)
-    } else if n >= 1_000 {
-        format!("{:.1}K", n as f64 / 1e3)
-    } else {
-        n.to_string()
-    }
-}
-
-fn format_cost(usd: f64) -> String {
-    if usd >= 1000.0 {
-        format!("${:.0}", usd)
-    } else if usd >= 1.0 {
-        format!("${:.2}", usd)
-    } else if usd >= 0.01 {
-        format!("{:.0}c", usd * 100.0)
-    } else if usd > 0.0 {
-        format!("{:.2}c", usd * 100.0)
-    } else {
-        "$0".to_string()
-    }
-}
-
-fn format_energy(wh: f64) -> String {
-    if wh >= 1_000_000.0 {
-        format!("{:.1} MWh", wh / 1_000_000.0)
-    } else if wh >= 1000.0 {
-        format!("{:.1} kWh", wh / 1000.0)
-    } else if wh >= 1.0 {
-        format!("{:.1} Wh", wh)
-    } else {
-        format!("{:.2} mWh", wh * 1000.0)
-    }
-}
-
-fn format_co2(grams: f64) -> String {
-    if grams >= 1_000_000.0 {
-        format!("{:.1} t", grams / 1_000_000.0)
-    } else if grams >= 1000.0 {
-        format!("{:.1} kg", grams / 1000.0)
-    } else if grams >= 1.0 {
-        format!("{:.1} g", grams)
-    } else {
-        format!("{:.2} mg", grams * 1000.0)
-    }
-}
-
-fn format_water(ml: f64) -> String {
-    if ml >= 1_000_000.0 {
-        format!("{:.1} m3", ml / 1_000_000.0)
-    } else if ml >= 1000.0 {
-        format!("{:.1} L", ml / 1000.0)
-    } else if ml >= 1.0 {
-        format!("{:.0} mL", ml)
-    } else {
-        format!("{:.2} uL", ml * 1000.0)
-    }
-}
-
-fn format_trees(trees: f64) -> String {
-    if trees >= 100.0 {
-        format!("{:.0}", trees)
-    } else if trees >= 1.0 {
-        format!("{:.2}", trees)
-    } else if trees >= 0.01 {
-        format!("{:.4}", trees)
-    } else if trees > 0.0 {
-        format!("{:.6}", trees)
-    } else {
-        "0".to_string()
     }
 }

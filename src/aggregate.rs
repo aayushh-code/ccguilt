@@ -2,19 +2,29 @@ use chrono::{Datelike, IsoWeek};
 use indexmap::IndexMap;
 
 use crate::calc::cost::calculate_total_cost;
-use crate::calc::impact::{calculate_impact, determine_guilt};
+use crate::calc::impact::{calculate_impact_with, determine_guilt};
 use crate::cli::Period;
 use crate::models::{ModelTier, TokenRecord, UsageBucket};
 
+#[allow(dead_code)]
 pub fn aggregate(records: Vec<TokenRecord>, period: Period) -> Vec<UsageBucket> {
+    aggregate_with(records, period, crate::config::CO2_KG_PER_KWH, crate::config::PUE)
+}
+
+pub fn aggregate_with(
+    records: Vec<TokenRecord>,
+    period: Period,
+    co2_kg_per_kwh: f64,
+    pue: f64,
+) -> Vec<UsageBucket> {
     match period {
-        Period::Daily => aggregate_by(records, |r| r.timestamp.format("%Y-%m-%d").to_string()),
+        Period::Daily => aggregate_by(records, |r| r.timestamp.format("%Y-%m-%d").to_string(), co2_kg_per_kwh, pue),
         Period::Weekly => aggregate_by(records, |r| {
             let w: IsoWeek = r.timestamp.iso_week();
             format!("{}-W{:02}", w.year(), w.week())
-        }),
-        Period::Monthly => aggregate_by(records, |r| r.timestamp.format("%Y-%m").to_string()),
-        Period::Session => aggregate_by(records, |r| r.session_id.clone()),
+        }, co2_kg_per_kwh, pue),
+        Period::Monthly => aggregate_by(records, |r| r.timestamp.format("%Y-%m").to_string(), co2_kg_per_kwh, pue),
+        Period::Session => aggregate_by(records, |r| r.session_id.clone(), co2_kg_per_kwh, pue),
         Period::Total => {
             let mut bucket = UsageBucket {
                 label: "All Time".to_string(),
@@ -23,15 +33,35 @@ pub fn aggregate(records: Vec<TokenRecord>, period: Period) -> Vec<UsageBucket> 
             for record in &records {
                 add_record_to_bucket(&mut bucket, record);
             }
-            finalize_bucket(&mut bucket);
+            finalize_bucket(&mut bucket, co2_kg_per_kwh, pue);
             vec![bucket]
         }
     }
 }
 
+pub fn aggregate_by_project(records: Vec<TokenRecord>, co2_kg_per_kwh: f64, pue: f64) -> Vec<UsageBucket> {
+    aggregate_by(
+        records,
+        |r| crate::data::discovery::decode_project_name(&r.project_name),
+        co2_kg_per_kwh,
+        pue,
+    )
+}
+
+pub fn aggregate_by_model(records: Vec<TokenRecord>, co2_kg_per_kwh: f64, pue: f64) -> Vec<UsageBucket> {
+    aggregate_by(
+        records,
+        |r| r.model.display_name().to_string(),
+        co2_kg_per_kwh,
+        pue,
+    )
+}
+
 fn aggregate_by<F: Fn(&TokenRecord) -> String>(
     mut records: Vec<TokenRecord>,
     key_fn: F,
+    co2_kg_per_kwh: f64,
+    pue: f64,
 ) -> Vec<UsageBucket> {
     records.sort_by_key(|r| r.timestamp);
 
@@ -47,7 +77,7 @@ fn aggregate_by<F: Fn(&TokenRecord) -> String>(
     }
 
     for bucket in buckets.values_mut() {
-        finalize_bucket(bucket);
+        finalize_bucket(bucket, co2_kg_per_kwh, pue);
     }
 
     buckets.into_values().collect()
@@ -65,16 +95,15 @@ fn add_record_to_bucket(bucket: &mut UsageBucket, record: &TokenRecord) {
     model_entry.cache_creation_tokens += record.cache_creation_input_tokens;
     model_entry.cache_read_tokens += record.cache_read_input_tokens;
 
-    // Track models used
     let model_name = record.model.display_name().to_string();
     if !bucket.models_used.contains(&model_name) {
         bucket.models_used.push(model_name);
     }
 }
 
-fn finalize_bucket(bucket: &mut UsageBucket) {
+fn finalize_bucket(bucket: &mut UsageBucket, co2_kg_per_kwh: f64, pue: f64) {
     bucket.cost = calculate_total_cost(&bucket.tokens);
-    bucket.impact = calculate_impact(&bucket.tokens);
+    bucket.impact = calculate_impact_with(&bucket.tokens, co2_kg_per_kwh, pue);
     bucket.guilt = determine_guilt(&bucket.impact);
 }
 
@@ -109,8 +138,6 @@ pub fn fast_path_total(
 }
 
 /// Build TokenRecords from fast-path daily data
-/// Since dailyModelTokens only has total tokens (not split by input/output/cache),
-/// we distribute using the all-time ratios from modelUsage
 pub fn fast_path_daily(
     daily_tokens: &[crate::models::CacheDailyTokens],
     model_usage: &indexmap::IndexMap<String, crate::models::CacheModelUsage>,
@@ -129,22 +156,21 @@ pub fn fast_path_daily(
                 None => continue,
             };
 
-            // Get the all-time ratios for this model
             let (input_ratio, output_ratio, cache_create_ratio, cache_read_ratio) =
-                if let Some(aggregate) = model_usage.get(model_name) {
-                    let total = aggregate.input_tokens
-                        + aggregate.output_tokens
-                        + aggregate.cache_creation_input_tokens
-                        + aggregate.cache_read_input_tokens;
+                if let Some(agg) = model_usage.get(model_name) {
+                    let total = agg.input_tokens
+                        + agg.output_tokens
+                        + agg.cache_creation_input_tokens
+                        + agg.cache_read_input_tokens;
                     if total == 0 {
                         (0.25, 0.25, 0.25, 0.25)
                     } else {
                         let t = total as f64;
                         (
-                            aggregate.input_tokens as f64 / t,
-                            aggregate.output_tokens as f64 / t,
-                            aggregate.cache_creation_input_tokens as f64 / t,
-                            aggregate.cache_read_input_tokens as f64 / t,
+                            agg.input_tokens as f64 / t,
+                            agg.output_tokens as f64 / t,
+                            agg.cache_creation_input_tokens as f64 / t,
+                            agg.cache_read_input_tokens as f64 / t,
                         )
                     }
                 } else {
