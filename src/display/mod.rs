@@ -87,6 +87,12 @@ pub fn print_summary_footer(buckets: &[UsageBucket], no_guilt: bool) {
     let quote = guilt::random_quote();
     println!("  {}", quote.italic().dimmed());
 
+    // Nihilistic / absurdist remark based on overall guilt level
+    let overall_guilt = crate::calc::impact::determine_guilt(&total_impact);
+    let remark = guilt::random_remark(overall_guilt.level);
+    println!();
+    println!("  {}", remark.italic().bright_black());
+
     // Sources
     println!();
     println!(
