@@ -22,61 +22,75 @@ fn colorize_art(line: &str, level: GuiltLevel) -> String {
 
 fn mascot_art(level: GuiltLevel) -> &'static str {
     match level {
-        GuiltLevel::DigitalSaint => r#"
+        GuiltLevel::DigitalSaint => {
+            r#"
     🌳
    /|\
   / | \
  /  |  \
     |
    /|\
-"#,
-        GuiltLevel::CarbonCurious => r#"
+"#
+        }
+        GuiltLevel::CarbonCurious => {
+            r#"
     🌿
    /|
   / | \
     |  \
     |
    /|\
-"#,
-        GuiltLevel::TreeTrimmer => r#"
+"#
+        }
+        GuiltLevel::TreeTrimmer => {
+            r#"
     ·
    /|
      | \
     |
     |
    /|\
-"#,
-        GuiltLevel::ForestFlattener => r#"
+"#
+        }
+        GuiltLevel::ForestFlattener => {
+            r#"
     ✂️
     |
     |
     |
    /|\
   _____
-"#,
-        GuiltLevel::EcoTerrorist => r#"
+"#
+        }
+        GuiltLevel::EcoTerrorist => {
+            r#"
   🔥🔥🔥
  🔥 | 🔥
   🔥|🔥
     |
    /|\
   ~~~~~
-"#,
-        GuiltLevel::PlanetIncinerator => r#"
+"#
+        }
+        GuiltLevel::PlanetIncinerator => {
+            r#"
  💀💀💀💀
  ~~~..~~~
   ~.  .~
    ....
   _/  \_
   ======
-"#,
-        GuiltLevel::HeatDeathAccelerator => r#"
+"#
+        }
+        GuiltLevel::HeatDeathAccelerator => {
+            r#"
     ☢️
    .||.
   / || \
  / .||. \
 |  ||||  |
  \______/
-"#,
+"#
+        }
     }
 }

@@ -48,7 +48,9 @@ pub fn render_diff(
         Cell::new("Change").set_alignment(CellAlignment::Right),
     ]);
 
-    add_diff_row(&mut table, "Tokens", tok_a as f64, tok_b as f64, |v| format_tokens(v as u64));
+    add_diff_row(&mut table, "Tokens", tok_a as f64, tok_b as f64, |v| {
+        format_tokens(v as u64)
+    });
     add_diff_row(&mut table, "Cost", cost_a, cost_b, format_cost);
     add_diff_row(&mut table, "CO2", co2_a, co2_b, format_co2);
     add_diff_row(&mut table, "Water", water_a, water_b, format_water);

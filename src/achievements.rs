@@ -146,11 +146,7 @@ pub fn show_all() {
             );
             println!("      {}", ach.description.dimmed());
         } else {
-            println!(
-                "  {} {}",
-                "[ ]".dimmed(),
-                ach.name.dimmed(),
-            );
+            println!("  {} {}", "[ ]".dimmed(), ach.name.dimmed(),);
             println!("      {}", ach.description.dimmed());
         }
     }

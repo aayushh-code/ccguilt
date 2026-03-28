@@ -33,11 +33,7 @@ pub fn render_token_breakdown(buckets: &[UsageBucket]) {
     );
 
     println!();
-    println!(
-        "  {} {}",
-        "Token mix:".bold(),
-        bar,
-    );
+    println!("  {} {}", "Token mix:".bold(), bar,);
     println!(
         "    {} {:.0}%  {} {:.0}%  {} {:.0}%  {} {:.0}%",
         "\u{2588} Input".green(),

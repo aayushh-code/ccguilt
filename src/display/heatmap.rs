@@ -45,11 +45,11 @@ pub fn render_heatmap(buckets: &[UsageBucket], weeks: usize) {
             } else if let Some(&co2) = day_co2.get(&day) {
                 let intensity = (co2 / max_co2 * 4.0).round() as usize;
                 let ch = match intensity.min(4) {
-                    0 => "\u{2591}",  // ░
-                    1 => "\u{2592}",  // ▒
-                    2 => "\u{2593}",  // ▓
-                    3 => "\u{2588}",  // █
-                    _ => "\u{2588}",  // █
+                    0 => "\u{2591}", // ░
+                    1 => "\u{2592}", // ▒
+                    2 => "\u{2593}", // ▓
+                    3 => "\u{2588}", // █
+                    _ => "\u{2588}", // █
                 };
                 let colored = match intensity.min(4) {
                     0 => format!(" {} ", ch).green().to_string(),
