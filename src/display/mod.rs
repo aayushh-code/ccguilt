@@ -11,14 +11,10 @@ pub fn print_header() {
     let border = "=".repeat(66);
     println!();
     println!("{}", border.bright_red().bold());
+    println!("{}", "  CLAUDE CODE GUILT TRIP".bright_red().bold());
     println!(
         "{}",
-        "  CLAUDE CODE GUILT TRIP".bright_red().bold()
-    );
-    println!(
-        "{}",
-        "  An environmental impact report nobody asked for"
-            .red()
+        "  An environmental impact report nobody asked for".red()
     );
     println!("{}", border.bright_red().bold());
     println!();
@@ -95,8 +91,7 @@ pub fn print_summary_footer(buckets: &[UsageBucket], no_guilt: bool) {
     println!();
     println!(
         "  {}",
-        "Sources: Jegham et al. 2025, EPA eGRID 2024, Li et al. 2023,"
-            .dimmed()
+        "Sources: Jegham et al. 2025, EPA eGRID 2024, Li et al. 2023,".dimmed()
     );
     println!(
         "  {}",

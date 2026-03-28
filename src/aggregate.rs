@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use crate::calc::cost::calculate_total_cost;
 use crate::calc::impact::{calculate_impact, determine_guilt};
 use crate::cli::Period;
-use crate::models::{ModelTier, ModelTokens, TokenRecord, UsageBucket};
+use crate::models::{ModelTier, TokenRecord, UsageBucket};
 
 pub fn aggregate(records: Vec<TokenRecord>, period: Period) -> Vec<UsageBucket> {
     match period {
@@ -59,11 +59,7 @@ fn add_record_to_bucket(bucket: &mut UsageBucket, record: &TokenRecord) {
     bucket.tokens.cache_creation_tokens += record.cache_creation_input_tokens;
     bucket.tokens.cache_read_tokens += record.cache_read_input_tokens;
 
-    let model_entry = bucket
-        .tokens
-        .by_model
-        .entry(record.model)
-        .or_insert_with(ModelTokens::default);
+    let model_entry = bucket.tokens.by_model.entry(record.model).or_default();
     model_entry.input_tokens += record.input_tokens;
     model_entry.output_tokens += record.output_tokens;
     model_entry.cache_creation_tokens += record.cache_creation_input_tokens;
@@ -123,10 +119,7 @@ pub fn fast_path_daily(
 
     for day in daily_tokens {
         let timestamp = match chrono::NaiveDate::parse_from_str(&day.date, "%Y-%m-%d") {
-            Ok(d) => d
-                .and_hms_opt(12, 0, 0)
-                .unwrap()
-                .and_utc(),
+            Ok(d) => d.and_hms_opt(12, 0, 0).unwrap().and_utc(),
             Err(_) => continue,
         };
 

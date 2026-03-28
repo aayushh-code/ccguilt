@@ -14,25 +14,21 @@ pub fn generate_comparisons(impact: &ImpactSummary) -> Vec<String> {
         comparisons.push(format!(
             "{} Your AI thirst consumed {:.1}L of water — that's {:.0} glasses that \
              could have gone to someone who isn't arguing with a chatbot about semicolons.",
-            "💧".to_string(),
-            water_liters,
-            glasses
+            "💧", water_liters, glasses
         ));
     }
     if water_liters > 5.0 {
         let showers = water_liters / SHOWER_LITERS;
         comparisons.push(format!(
             "{} Equivalent to {:.1} showers. Except the shower would have been productive.",
-            "🚿".to_string(),
-            showers
+            "🚿", showers
         ));
     }
     if water_liters > 100.0 {
         let toilet_flushes = water_liters / 6.0;
         comparisons.push(format!(
             "{} That's {:.0} toilet flushes. At least those serve a purpose.",
-            "🚽".to_string(),
-            toilet_flushes
+            "🚽", toilet_flushes
         ));
     }
 
@@ -41,24 +37,21 @@ pub fn generate_comparisons(impact: &ImpactSummary) -> Vec<String> {
         let car_km = (co2_kg * 1000.0) / CAR_CO2_G_PER_KM;
         comparisons.push(format!(
             "{} Equivalent to driving {:.1} km. Except the car would have gotten you somewhere.",
-            "🚗".to_string(),
-            car_km
+            "🚗", car_km
         ));
     }
     if co2_kg > 1.0 {
         let hamburgers = co2_kg / HAMBURGER_CO2_KG;
         comparisons.push(format!(
             "{} The carbon equivalent of {:.1} hamburgers. At least hamburgers taste good.",
-            "🍔".to_string(),
-            hamburgers
+            "🍔", hamburgers
         ));
     }
     if co2_kg > 10.0 {
         let flights_pct = (co2_kg / 90.0) * 100.0;
         comparisons.push(format!(
             "{} That's {:.1}% of a transatlantic flight. The flight has free pretzels at least.",
-            "✈️".to_string(),
-            flights_pct
+            "✈\u{fe0f}", flights_pct
         ));
     }
 
@@ -68,8 +61,7 @@ pub fn generate_comparisons(impact: &ImpactSummary) -> Vec<String> {
         comparisons.push(format!(
             "{} Enough energy to charge your phone {:.0} times. But sure, asking Claude \
              to rename a variable was totally worth it.",
-            "🔋".to_string(),
-            phone_charges
+            "🔋", phone_charges
         ));
     }
     if impact.energy_wh > 1000.0 {
@@ -77,8 +69,7 @@ pub fn generate_comparisons(impact: &ImpactSummary) -> Vec<String> {
         comparisons.push(format!(
             "{} Could power a lightbulb for {:.0} hours. An actual light, illuminating \
              an actual room, for actual humans.",
-            "💡".to_string(),
-            lightbulb_hours
+            "💡", lightbulb_hours
         ));
     }
 
@@ -87,8 +78,7 @@ pub fn generate_comparisons(impact: &ImpactSummary) -> Vec<String> {
         comparisons.push(format!(
             "{} You could've watched {:.0} hours of Netflix instead. The guilt would be \
              about your taste in shows, not the environment.",
-            "📺".to_string(),
-            impact.netflix_hours_equiv
+            "📺", impact.netflix_hours_equiv
         ));
     }
 

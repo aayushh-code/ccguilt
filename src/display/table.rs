@@ -38,10 +38,7 @@ pub fn render_table(buckets: &[UsageBucket], no_guilt: bool) {
             Cell::new(format_trees(bucket.impact.trees_destroyed)),
         ];
         if !no_guilt {
-            row.push(
-                Cell::new(&bucket.guilt.title)
-                    .fg(guilt_table_color(bucket.guilt.level)),
-            );
+            row.push(Cell::new(&bucket.guilt.title).fg(guilt_table_color(bucket.guilt.level)));
         }
         table.add_row(row);
     }
@@ -76,9 +73,7 @@ pub fn render_table(buckets: &[UsageBucket], no_guilt: bool) {
             Cell::new(format_trees(total_trees)).fg(comfy_table::Color::White),
         ];
         if !no_guilt {
-            total_row.push(
-                Cell::new(worst_title).fg(guilt_table_color(worst_guilt)),
-            );
+            total_row.push(Cell::new(worst_title).fg(guilt_table_color(worst_guilt)));
         }
         table.add_row(total_row);
     }

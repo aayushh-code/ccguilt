@@ -152,10 +152,7 @@ fn parse_single_file(
 
         let record = TokenRecord {
             timestamp,
-            session_id: raw
-                .session_id
-                .clone()
-                .unwrap_or_else(|| session_id.clone()),
+            session_id: raw.session_id.clone().unwrap_or_else(|| session_id.clone()),
             project_name: project_name.clone(),
             model: tier,
             input_tokens: input,

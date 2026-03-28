@@ -12,7 +12,8 @@ impl ClaudeDataDir {
     }
 
     pub fn default_path() -> Result<PathBuf> {
-        let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        let home =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         Ok(home.join(".claude"))
     }
 
@@ -72,7 +73,12 @@ impl ClaudeDataDir {
             return 0;
         }
         std::fs::read_dir(projects_dir)
-            .map(|entries| entries.filter_map(|e| e.ok()).filter(|e| e.path().is_dir()).count())
+            .map(|entries| {
+                entries
+                    .filter_map(|e| e.ok())
+                    .filter(|e| e.path().is_dir())
+                    .count()
+            })
             .unwrap_or(0)
     }
 }

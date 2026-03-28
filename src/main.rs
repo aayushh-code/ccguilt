@@ -63,10 +63,7 @@ fn main() -> Result<()> {
             std::process::exit(1);
         }
 
-        eprintln!(
-            "  {} Reading stats-cache.json...",
-            ">>".yellow().bold()
-        );
+        eprintln!("  {} Reading stats-cache.json...", ">>".yellow().bold());
         let fast_data = data::cache::parse_stats_cache(&cache_path)?;
 
         match args.period {
