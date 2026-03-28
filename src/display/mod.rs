@@ -1,12 +1,18 @@
 pub mod chart;
 pub mod compare;
 pub mod csv;
+pub mod diff;
 pub mod format;
 pub mod guilt;
+pub mod heatmap;
 pub mod html;
 pub mod json;
 pub mod markdown;
+pub mod mascot;
+pub mod offset;
+pub mod session_detail;
 pub mod table;
+pub mod token_breakdown;
 
 use colored::Colorize;
 
@@ -24,6 +30,7 @@ pub struct DisplayOptions {
     pub show_cumulative: bool,
     pub show_efficiency: bool,
     pub budget_co2_grams: Option<f64>,
+    pub show_offset: bool,
 }
 
 pub fn print_header() {
@@ -84,9 +91,16 @@ pub fn print_summary_footer(buckets: &[UsageBucket], opts: &DisplayOptions, rc: 
         netflix_hours_equiv: buckets.iter().map(|b| b.impact.netflix_hours_equiv).sum(),
     };
 
+    // ASCII mascot
+    let overall_guilt = crate::calc::impact::determine_guilt(&total_impact);
+    mascot::print_mascot(overall_guilt.level);
+
     // Tree progress bar
     println!();
     println!("{}", guilt::tree_progress_bar(total_trees));
+
+    // Token type breakdown
+    token_breakdown::render_token_breakdown(buckets);
 
     // Sparklines
     if opts.show_sparklines && buckets.len() > 1 {
@@ -183,6 +197,11 @@ pub fn print_summary_footer(buckets: &[UsageBucket], opts: &DisplayOptions, rc: 
                 trend_str,
             );
         }
+    }
+
+    // Carbon offset
+    if opts.show_offset {
+        offset::render_offset(total_co2);
     }
 
     // Satirical comparisons

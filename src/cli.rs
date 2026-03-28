@@ -147,6 +147,40 @@ pub struct Args {
     /// Check for updates and self-update if available
     #[arg(long)]
     pub increase_guilt: bool,
+
+    // ── New Features ──
+
+    /// Compare two time periods (e.g., --diff last-week this-week)
+    #[arg(long, num_args = 2)]
+    pub diff: Option<Vec<String>>,
+
+    /// Show model cost/CO2 optimization recommendations
+    #[arg(long)]
+    pub recommend: bool,
+
+    /// Show the Hall of Shame (all achievements)
+    #[arg(long)]
+    pub achievements: bool,
+
+    /// Show carbon offset options
+    #[arg(long)]
+    pub offset: bool,
+
+    /// List all projects ranked by environmental impact
+    #[arg(long)]
+    pub projects: bool,
+
+    /// Show detailed timeline for a session (substring match on ID)
+    #[arg(long)]
+    pub session: Option<String>,
+
+    /// Output a single compact line (for git hooks)
+    #[arg(long, group = "output_format")]
+    pub hook_output: bool,
+
+    /// Show a calendar heatmap of daily CO2 emissions
+    #[arg(long)]
+    pub heatmap: bool,
 }
 
 #[derive(ValueEnum, Clone, Debug, Copy, PartialEq, Eq)]

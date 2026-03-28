@@ -110,6 +110,64 @@ fn parse_weekday_name(s: &str) -> Option<Weekday> {
     }
 }
 
+/// Parse a diff period name into (start, end) datetime range
+pub fn parse_diff_period(s: &str) -> Result<(DateTime<Utc>, DateTime<Utc>)> {
+    let s = s.trim().to_lowercase();
+    let today = Local::now().date_naive();
+
+    // Try as ISO date (single day)
+    if let Ok(naive) = NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+        let start = naive.and_hms_opt(0, 0, 0).unwrap().and_utc();
+        let end = (naive + Duration::days(1)).and_hms_opt(0, 0, 0).unwrap().and_utc();
+        return Ok((start, end));
+    }
+
+    match s.as_str() {
+        "today" => {
+            let start = today.and_hms_opt(0, 0, 0).unwrap().and_utc();
+            let end = (today + Duration::days(1)).and_hms_opt(0, 0, 0).unwrap().and_utc();
+            Ok((start, end))
+        }
+        "yesterday" => {
+            let d = today - Duration::days(1);
+            Ok((d.and_hms_opt(0, 0, 0).unwrap().and_utc(), today.and_hms_opt(0, 0, 0).unwrap().and_utc()))
+        }
+        "this-week" | "thisweek" => {
+            let dow = today.weekday().num_days_from_monday();
+            let monday = today - Duration::days(dow as i64);
+            let next_monday = monday + Duration::weeks(1);
+            Ok((monday.and_hms_opt(0, 0, 0).unwrap().and_utc(), next_monday.and_hms_opt(0, 0, 0).unwrap().and_utc()))
+        }
+        "last-week" | "lastweek" => {
+            let dow = today.weekday().num_days_from_monday();
+            let this_monday = today - Duration::days(dow as i64);
+            let last_monday = this_monday - Duration::weeks(1);
+            Ok((last_monday.and_hms_opt(0, 0, 0).unwrap().and_utc(), this_monday.and_hms_opt(0, 0, 0).unwrap().and_utc()))
+        }
+        "this-month" | "thismonth" => {
+            let first = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap();
+            let next = if today.month() == 12 {
+                NaiveDate::from_ymd_opt(today.year() + 1, 1, 1).unwrap()
+            } else {
+                NaiveDate::from_ymd_opt(today.year(), today.month() + 1, 1).unwrap()
+            };
+            Ok((first.and_hms_opt(0, 0, 0).unwrap().and_utc(), next.and_hms_opt(0, 0, 0).unwrap().and_utc()))
+        }
+        "last-month" | "lastmonth" => {
+            let first_this = NaiveDate::from_ymd_opt(today.year(), today.month(), 1).unwrap();
+            let (y, m) = if today.month() == 1 { (today.year() - 1, 12) } else { (today.year(), today.month() - 1) };
+            let first_last = NaiveDate::from_ymd_opt(y, m, 1).unwrap();
+            Ok((first_last.and_hms_opt(0, 0, 0).unwrap().and_utc(), first_this.and_hms_opt(0, 0, 0).unwrap().and_utc()))
+        }
+        _ => {
+            // Try as a start date for a single-day range
+            let start = parse_natural_date(&s)?;
+            let end_date = start + chrono::Duration::days(1);
+            Ok((start, end_date))
+        }
+    }
+}
+
 /// Parse a CO2 budget string like "50kg", "5000g", "1t" into grams
 pub fn parse_co2_budget(s: &str) -> Result<f64> {
     let s = s.trim().to_lowercase();
