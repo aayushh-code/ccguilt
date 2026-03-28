@@ -1,5 +1,5 @@
 use crate::config::*;
-use crate::models::ImpactSummary;
+use crate::models::{GuiltLevel, ImpactSummary};
 use colored::Colorize;
 use rand::seq::SliceRandom;
 
@@ -165,4 +165,64 @@ pub const GUILT_QUOTES: &[&str] = &[
 pub fn random_quote() -> &'static str {
     let mut rng = rand::thread_rng();
     GUILT_QUOTES.choose(&mut rng).unwrap()
+}
+
+/// Nihilistic remarks — the void stares back, sorted by escalating despair.
+const NIHILISM_LOW: &[&str] = &[
+    "Nothing you do matters, but at least your carbon footprint is small enough to match.",
+    "The universe doesn't care about your tokens. It doesn't care about anything. Carry on.",
+    "You've barely made a dent in the void. Then again, the void doesn't notice dents.",
+];
+
+const NIHILISM_MID: &[&str] = &[
+    "You're consuming resources to make a machine think for you, in a universe where thinking changes nothing.",
+    "Every token is a tiny scream into the abyss. The abyss has noise-canceling headphones.",
+    "Sisyphus pushed a boulder. You push tokens. Neither of you will ever finish.",
+    "In a hundred years no one will remember your prompts, your code, or the water you boiled off a river. Isn't that freeing?",
+];
+
+const NIHILISM_HIGH: &[&str] = &[
+    "The heat death of the universe was already inevitable. You're just padding the schedule.",
+    "Congratulations: you've achieved the rare feat of making entropy feel like a personal choice.",
+    "Stars will burn out, civilizations will crumble, and your tokens will have mattered exactly as much as everything else: zero.",
+];
+
+/// Absurdist remarks — Camus would approve, probably.
+const ABSURDISM_LOW: &[&str] = &[
+    "A butterfly flaps its wings and causes a hurricane. You flap your keyboard and cause... a slightly warmer server room.",
+    "Somewhere a philosopher is debating whether your prompts count as art. The server cooling them does not care.",
+    "You asked a rock that learned to think to help you think less. And it used water to do it. Beautiful.",
+];
+
+const ABSURDISM_MID: &[&str] = &[
+    "A machine that has never seen a tree is helping you calculate how many trees you've killed. This is the future we chose.",
+    "You are paying money so electricity can pretend to be intelligent and then feel guilty about the electricity. Peak humanity.",
+    "We taught sand to think, fed it a library, and now it writes your for-loops while a glacier weeps. Kafka couldn't have written this.",
+    "The AI doesn't know it's destroying the environment. You do. And yet here we both are.",
+];
+
+const ABSURDISM_HIGH: &[&str] = &[
+    "You've used enough energy to power a small village, and all you got was a refactored function and an existential crisis.",
+    "At this rate, future archaeologists will find your server rack before they find the rainforest. Because there won't be a rainforest.",
+    "One must imagine Sisyphus happy. One must imagine you refreshing your terminal as the ice caps melt. Same energy.",
+];
+
+/// Pick a nihilistic or absurdist remark appropriate to the guilt level.
+pub fn random_remark(level: GuiltLevel) -> &'static str {
+    let mut rng = rand::thread_rng();
+
+    let (nihilism, absurdism) = match level {
+        GuiltLevel::DigitalSaint | GuiltLevel::CarbonCurious => {
+            (NIHILISM_LOW.to_vec(), ABSURDISM_LOW.to_vec())
+        }
+        GuiltLevel::TreeTrimmer | GuiltLevel::ForestFlattener => {
+            (NIHILISM_MID.to_vec(), ABSURDISM_MID.to_vec())
+        }
+        GuiltLevel::EcoTerrorist | GuiltLevel::PlanetIncinerator | GuiltLevel::HeatDeathAccelerator => {
+            (NIHILISM_HIGH.to_vec(), ABSURDISM_HIGH.to_vec())
+        }
+    };
+
+    let pool: Vec<&str> = nihilism.into_iter().chain(absurdism).collect();
+    pool.choose(&mut rng).unwrap()
 }
