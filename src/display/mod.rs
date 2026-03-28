@@ -1,3 +1,4 @@
+pub mod chart;
 pub mod guilt;
 pub mod json;
 pub mod table;

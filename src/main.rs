@@ -133,6 +133,9 @@ fn main() -> Result<()> {
         display::print_header();
         display::print_metadata(&data_dir, file_count, args.project.as_deref(), args.fast);
         display::table::render_table(&buckets, args.no_guilt);
+        if args.chart {
+            display::chart::render_chart(&buckets);
+        }
         display::print_summary_footer(&buckets, args.no_guilt);
     }
 
