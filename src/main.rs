@@ -1,3 +1,4 @@
+mod achievements;
 mod aggregate;
 mod calc;
 mod cli;
@@ -9,6 +10,7 @@ mod display;
 mod forecast;
 mod interactive;
 mod models;
+mod recommend;
 mod runtime;
 mod sort_filter;
 mod update;
@@ -103,6 +105,70 @@ fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Early-exit: session detail
+    if let Some(ref session_id) = args.session {
+        display::session_detail::render_session_detail(&records, session_id);
+        return Ok(());
+    }
+
+    // Early-exit: achievements listing
+    if args.achievements {
+        // Need to aggregate first for achievement checking
+        let buckets = aggregate::aggregate_with(records, args.period, rc.co2_kg_per_kwh, rc.pue);
+        achievements::check_and_announce(&buckets);
+        achievements::show_all();
+        return Ok(());
+    }
+
+    // Early-exit: projects ranking
+    if args.projects {
+        let mut buckets = aggregate::aggregate_by_project(records.clone(), rc.co2_kg_per_kwh, rc.pue);
+        sort_filter::sort_buckets(&mut buckets, cli::SortField::Co2);
+        if args.json {
+            let json = display::json::render_json(&buckets)?;
+            println!("{json}");
+        } else {
+            display::print_header();
+            println!("  {}", "Project Ranking (by CO2 impact)".bold());
+            println!();
+            display::table::render_table(&buckets, &display::DisplayOptions {
+                no_guilt: rc.no_guilt,
+                no_color: rc.no_color,
+                by_model: false,
+                show_trends: false,
+                show_sparklines: false,
+                show_cumulative: false,
+                show_efficiency: false,
+                budget_co2_grams: None,
+                show_offset: false,
+            });
+        }
+        return Ok(());
+    }
+
+    // Early-exit: heatmap
+    if args.heatmap {
+        let buckets = aggregate::aggregate_with(records, cli::Period::Daily, rc.co2_kg_per_kwh, rc.pue);
+        display::heatmap::render_heatmap(&buckets, 12);
+        return Ok(());
+    }
+
+    // Early-exit: diff mode
+    if let Some(ref periods) = args.diff {
+        let (since_a, until_a) = dateparse::parse_diff_period(&periods[0])?;
+        let (since_b, until_b) = dateparse::parse_diff_period(&periods[1])?;
+        let records_a: Vec<_> = records.iter()
+            .filter(|r| r.timestamp >= since_a && r.timestamp < until_a)
+            .cloned().collect();
+        let records_b: Vec<_> = records.iter()
+            .filter(|r| r.timestamp >= since_b && r.timestamp < until_b)
+            .cloned().collect();
+        let buckets_a = aggregate::aggregate_with(records_a, Period::Total, rc.co2_kg_per_kwh, rc.pue);
+        let buckets_b = aggregate::aggregate_with(records_b, Period::Total, rc.co2_kg_per_kwh, rc.pue);
+        display::diff::render_diff(&periods[0], &buckets_a, &periods[1], &buckets_b);
+        return Ok(());
+    }
+
     // Aggregate
     let mut buckets = match args.group_by {
         Some(cli::GroupBy::Project) => {
@@ -138,7 +204,34 @@ fn main() -> Result<()> {
         show_cumulative: args.cumulative,
         show_efficiency: args.efficiency,
         budget_co2_grams: rc.budget_co2_grams,
+        show_offset: args.offset,
     };
+
+    // Hook output (single-line for git hooks)
+    if args.hook_output {
+        let total_cost: f64 = buckets.iter().map(|b| b.cost.total_cost_usd).sum();
+        let total_co2: f64 = buckets.iter().map(|b| b.impact.co2_grams).sum();
+        let total_trees: f64 = buckets.iter().map(|b| b.impact.trees_destroyed).sum();
+        let total_impact = crate::models::ImpactSummary {
+            co2_grams: total_co2,
+            ..Default::default()
+        };
+        let guilt = calc::impact::determine_guilt(&total_impact);
+        println!(
+            "Cost: ${:.2} | CO2: {} | Trees: {:.4} | Guilt: {}",
+            total_cost,
+            display::format::format_co2(total_co2),
+            total_trees,
+            guilt.title,
+        );
+        return Ok(());
+    }
+
+    // Model recommendations
+    if args.recommend {
+        recommend::print_recommendations(&buckets, rc.co2_kg_per_kwh, rc.pue);
+        return Ok(());
+    }
 
     // Dispatch output
     if args.interactive {
@@ -180,6 +273,11 @@ fn main() -> Result<()> {
             display::chart::render_chart(&buckets);
         }
         display::print_summary_footer(&buckets, &display_opts, &rc);
+    }
+
+    // Check achievements (after display, before file output)
+    if !rc.no_guilt {
+        achievements::check_and_announce(&buckets);
     }
 
     // Write to file if --output specified
