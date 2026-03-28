@@ -66,6 +66,33 @@ impl ClaudeDataDir {
         String::new()
     }
 
+    /// Returns JSONL files filtered by project regex pattern
+    pub fn jsonl_files_regex(&self, pattern: &str) -> anyhow::Result<Vec<PathBuf>> {
+        let re = regex::Regex::new(pattern)?;
+        let projects_dir = self.projects_dir();
+        if !projects_dir.exists() {
+            return Ok(Vec::new());
+        }
+
+        let mut files = Vec::new();
+        for entry in WalkDir::new(&projects_dir)
+            .min_depth(1)
+            .max_depth(3)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            if path.extension().is_some_and(|ext| ext == "jsonl") {
+                let project_name = Self::project_name_from_jsonl(path, &projects_dir);
+                let decoded = decode_project_name(&project_name);
+                if re.is_match(&project_name) || re.is_match(&decoded) {
+                    files.push(path.to_path_buf());
+                }
+            }
+        }
+        Ok(files)
+    }
+
     /// Count the number of project directories
     pub fn project_count(&self) -> usize {
         let projects_dir = self.projects_dir();

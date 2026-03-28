@@ -76,7 +76,6 @@ pub struct TokenSummary {
     pub output_tokens: u64,
     pub cache_creation_tokens: u64,
     pub cache_read_tokens: u64,
-    #[serde(skip)]
     pub by_model: HashMap<ModelTier, ModelTokens>,
 }
 

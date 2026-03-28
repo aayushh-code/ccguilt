@@ -21,14 +21,21 @@ pub fn render_chart(buckets: &[UsageBucket]) {
         format_water_short,
     );
 
-    // Shared legend (print once)
+    // Shared legend
     println!();
     print!("  ");
     let levels = [
         ("Saint", Color::Green),
         ("Curious", Color::Cyan),
         ("Trimmer", Color::Yellow),
-        ("Flattener", Color::TrueColor { r: 255, g: 165, b: 0 }),
+        (
+            "Flattener",
+            Color::TrueColor {
+                r: 255,
+                g: 165,
+                b: 0,
+            },
+        ),
         ("Terrorist", Color::Red),
         ("Incinerator", Color::TrueColor { r: 139, g: 0, b: 0 }),
         ("HeatDeath", Color::Magenta),
@@ -46,7 +53,7 @@ fn render_bar_chart(
     value_fn: fn(&UsageBucket) -> f64,
     format_fn: fn(f64) -> String,
 ) {
-    let max_val = buckets.iter().map(|b| value_fn(b)).fold(0.0_f64, f64::max);
+    let max_val = buckets.iter().map(&value_fn).fold(0.0_f64, f64::max);
 
     if max_val == 0.0 {
         return;

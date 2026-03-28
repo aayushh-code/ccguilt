@@ -2,46 +2,36 @@ use crate::config::*;
 use crate::models::{GuiltLevel, GuiltRating, ImpactSummary, TokenSummary};
 
 pub fn calculate_impact(summary: &TokenSummary) -> ImpactSummary {
+    calculate_impact_with(summary, CO2_KG_PER_KWH, PUE)
+}
+
+pub fn calculate_impact_with(
+    summary: &TokenSummary,
+    co2_kg_per_kwh: f64,
+    pue: f64,
+) -> ImpactSummary {
     let mut total_energy_wh = 0.0;
 
     for (tier, model_tokens) in &summary.by_model {
         let profile = energy_profile(*tier);
 
-        // Input tokens: full inference energy
         total_energy_wh += model_tokens.input_tokens as f64 * profile.wh_per_input_token;
-
-        // Output tokens: full inference energy
         total_energy_wh += model_tokens.output_tokens as f64 * profile.wh_per_output_token;
-
-        // Cache creation: same energy as regular input (model still processes it)
         total_energy_wh += model_tokens.cache_creation_tokens as f64
             * profile.wh_per_input_token
             * profile.cache_creation_multiplier;
-
-        // Cache read: ~10% of input energy (memory lookup, not full inference)
         total_energy_wh += model_tokens.cache_read_tokens as f64
             * profile.wh_per_input_token
             * profile.cache_read_multiplier;
     }
 
-    // Apply PUE (data center overhead: cooling, networking, storage, etc.)
-    let energy_with_pue = total_energy_wh * PUE;
-
-    // CO2: convert Wh to kWh, multiply by grid carbon intensity
-    let co2_kg = (energy_with_pue / 1000.0) * CO2_KG_PER_KWH;
+    let energy_with_pue = total_energy_wh * pue;
+    let co2_kg = (energy_with_pue / 1000.0) * co2_kg_per_kwh;
     let co2_grams = co2_kg * 1000.0;
-
-    // Water: convert Wh to kWh, multiply by WUE
     let water_liters = (energy_with_pue / 1000.0) * WATER_LITERS_PER_KWH;
     let water_ml = water_liters * 1000.0;
-
-    // Trees destroyed (by CO2 absorption equivalent, annual)
     let trees_destroyed = co2_kg / TREE_CO2_KG_PER_YEAR;
-
-    // Trees dehydrated (by water consumption equivalent, annual)
     let trees_dehydrated = water_liters / TREE_WATER_LITERS_PER_YEAR;
-
-    // Netflix equivalent hours
     let netflix_hours = energy_with_pue / NETFLIX_WH_PER_HOUR;
 
     ImpactSummary {
