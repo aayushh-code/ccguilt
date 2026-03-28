@@ -143,6 +143,10 @@ pub struct Args {
     /// Generate shell completions (bash, zsh, fish, elvish, powershell)
     #[arg(long)]
     pub completions: Option<clap_complete::Shell>,
+
+    /// Check for updates and self-update if available
+    #[arg(long)]
+    pub increase_guilt: bool,
 }
 
 #[derive(ValueEnum, Clone, Debug, Copy, PartialEq, Eq)]

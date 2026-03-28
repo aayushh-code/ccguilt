@@ -11,6 +11,7 @@ mod interactive;
 mod models;
 mod runtime;
 mod sort_filter;
+mod update;
 mod watch;
 
 use anyhow::Result;
@@ -24,6 +25,11 @@ use runtime::RuntimeConfig;
 
 fn main() -> Result<()> {
     let args = Args::parse();
+
+    // Handle self-update early exit
+    if args.increase_guilt {
+        return update::self_update();
+    }
 
     // Handle shell completions early exit
     if let Some(shell) = args.completions {
