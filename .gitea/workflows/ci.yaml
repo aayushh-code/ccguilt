@@ -12,20 +12,31 @@ jobs:
     steps:
       - name: Checkout
         run: |
-          git clone --depth 1 $GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git .
-          git checkout $GITHUB_SHA
+          git clone --depth 1 http://192.168.100.195/aayush/ccguilt.git .
+          git fetch origin ${{ github.sha }} && git checkout ${{ github.sha }} || true
 
-      - name: Install components
-        run: rustup component add clippy rustfmt
+      - name: Rust version
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustc --version
+          cargo --version
 
       - name: Check formatting
-        run: cargo fmt --check
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo fmt --check
 
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo clippy -- -D warnings
 
       - name: Build
-        run: cargo build --release
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo build --release
 
       - name: Test
-        run: cargo test
+        run: |
+          export PATH="$HOME/.cargo/bin:$PATH"
+          cargo test
