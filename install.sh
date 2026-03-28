@@ -2,7 +2,7 @@
 # ccguilt installer — curl -sSL http://git.aeoru/aayush/ccguilt/raw/branch/master/install.sh | bash
 set -e
 
-REPO="http://git.aeoru/aayush/ccguilt"
+REPO="http://192.168.100.195/aayush/ccguilt"
 BINARY_URL="${REPO}/releases/download/v0.1.0/ccguilt-linux-amd64"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="ccguilt"
