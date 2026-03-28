@@ -10,7 +10,10 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        run: |
+          git clone --depth 1 $GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git .
+          git checkout $GITHUB_SHA
 
       - name: Install components
         run: rustup component add clippy rustfmt

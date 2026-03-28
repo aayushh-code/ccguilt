@@ -9,7 +9,9 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME} $GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git .
 
       - name: Build release binary
         run: cargo build --release
@@ -17,20 +19,18 @@ jobs:
       - name: Rename binary
         run: cp target/release/ccguilt ccguilt-linux-amd64
 
-      - name: Upload release asset
-        env:
-          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+      - name: Create release and upload
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          # Create release via API
+          TAG=${GITHUB_REF_NAME}
           RELEASE_ID=$(curl -s -X POST \
-            -H "Authorization: token ${GITEA_TOKEN}" \
+            -u "aayush:aayush123" \
             -H "Content-Type: application/json" \
             -d "{\"tag_name\":\"${TAG}\",\"name\":\"${TAG}\",\"body\":\"Automated release for ${TAG}\"}" \
-            "http://192.168.100.195/api/v1/repos/aayush/ccguilt/releases" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
-          # Upload binary
+            "http://192.168.100.195/api/v1/repos/aayush/ccguilt/releases" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
           curl -s -X POST \
-            -H "Authorization: token ${GITEA_TOKEN}" \
+            -u "aayush:aayush123" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @ccguilt-linux-amd64 \
             "http://192.168.100.195/api/v1/repos/aayush/ccguilt/releases/${RELEASE_ID}/assets?name=ccguilt-linux-amd64"
+          echo "Release ${TAG} created with binary"
