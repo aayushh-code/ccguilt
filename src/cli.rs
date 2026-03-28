@@ -33,6 +33,10 @@ pub struct Args {
     #[arg(long)]
     pub fast: bool,
 
+    /// Show a bar chart of CO2 emissions per period
+    #[arg(long)]
+    pub chart: bool,
+
     /// Hide satirical commentary (coward mode)
     #[arg(long)]
     pub no_guilt: bool,
