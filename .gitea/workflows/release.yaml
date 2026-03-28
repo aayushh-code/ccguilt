@@ -11,26 +11,26 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Build release binary
         run: cargo build --release
 
       - name: Rename binary
         run: cp target/release/ccguilt ccguilt-linux-amd64
 
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: ccguilt-linux-amd64
-          generate_release_notes: true
+      - name: Upload release asset
+        env:
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          # Create release via API
+          RELEASE_ID=$(curl -s -X POST \
+            -H "Authorization: token ${GITEA_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\":\"${TAG}\",\"name\":\"${TAG}\",\"body\":\"Automated release for ${TAG}\"}" \
+            "http://192.168.100.195/api/v1/repos/aayush/ccguilt/releases" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))")
+          # Upload binary
+          curl -s -X POST \
+            -H "Authorization: token ${GITEA_TOKEN}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @ccguilt-linux-amd64 \
+            "http://192.168.100.195/api/v1/repos/aayush/ccguilt/releases/${RELEASE_ID}/assets?name=ccguilt-linux-amd64"

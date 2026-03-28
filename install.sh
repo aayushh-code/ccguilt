@@ -1,5 +1,5 @@
 #!/bin/bash
-# ccguilt installer — curl -sSL http://git.aeoru/aayush/ccguilt/raw/branch/master/install.sh | bash
+# ccguilt installer — curl -sSL http://192.168.100.195/aayush/ccguilt/raw/branch/master/install.sh | bash
 set -e
 
 REPO="http://192.168.100.195/aayush/ccguilt"
