@@ -52,7 +52,11 @@ pub fn self_update() -> Result<()> {
     );
 
     // Find the right asset for this platform
-    let asset_name = format!("ccguilt-{}-{}", std::env::consts::OS, std::env::consts::ARCH);
+    let asset_name = format!(
+        "ccguilt-{}-{}",
+        std::env::consts::OS,
+        std::env::consts::ARCH
+    );
     let download_url = latest["assets"]
         .as_array()
         .and_then(|assets| {
@@ -71,11 +75,7 @@ pub fn self_update() -> Result<()> {
         })
         .ok_or_else(|| anyhow!("No binary found for {} in release {}.", asset_name, tag))?;
 
-    eprintln!(
-        "  {} Downloading {}...",
-        ">>".yellow().bold(),
-        download_url
-    );
+    eprintln!("  {} Downloading {}...", ">>".yellow().bold(), download_url);
 
     // Download to temp file
     let current_exe = std::env::current_exe()?;

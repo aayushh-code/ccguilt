@@ -34,6 +34,8 @@ pub fn render_offset(total_co2_grams: f64) {
     );
     println!(
         "    {}",
-        "Or just... use Haiku instead of Opus. Same result, less drama.".dimmed().italic(),
+        "Or just... use Haiku instead of Opus. Same result, less drama."
+            .dimmed()
+            .italic(),
     );
 }

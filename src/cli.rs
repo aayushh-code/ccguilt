@@ -149,7 +149,6 @@ pub struct Args {
     pub increase_guilt: bool,
 
     // ── New Features ──
-
     /// Compare two time periods (e.g., --diff last-week this-week)
     #[arg(long, num_args = 2)]
     pub diff: Option<Vec<String>>,

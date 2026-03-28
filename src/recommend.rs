@@ -39,8 +39,10 @@ pub fn print_recommendations(buckets: &[UsageBucket], co2_kg_per_kwh: f64, pue: 
             None => continue,
         };
 
-        let total = tokens.input_tokens + tokens.output_tokens
-            + tokens.cache_creation_tokens + tokens.cache_read_tokens;
+        let total = tokens.input_tokens
+            + tokens.output_tokens
+            + tokens.cache_creation_tokens
+            + tokens.cache_read_tokens;
         if total == 0 {
             continue;
         }

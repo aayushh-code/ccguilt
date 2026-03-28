@@ -122,7 +122,8 @@ fn main() -> Result<()> {
 
     // Early-exit: projects ranking
     if args.projects {
-        let mut buckets = aggregate::aggregate_by_project(records.clone(), rc.co2_kg_per_kwh, rc.pue);
+        let mut buckets =
+            aggregate::aggregate_by_project(records.clone(), rc.co2_kg_per_kwh, rc.pue);
         sort_filter::sort_buckets(&mut buckets, cli::SortField::Co2);
         if args.json {
             let json = display::json::render_json(&buckets)?;
@@ -131,24 +132,28 @@ fn main() -> Result<()> {
             display::print_header();
             println!("  {}", "Project Ranking (by CO2 impact)".bold());
             println!();
-            display::table::render_table(&buckets, &display::DisplayOptions {
-                no_guilt: rc.no_guilt,
-                no_color: rc.no_color,
-                by_model: false,
-                show_trends: false,
-                show_sparklines: false,
-                show_cumulative: false,
-                show_efficiency: false,
-                budget_co2_grams: None,
-                show_offset: false,
-            });
+            display::table::render_table(
+                &buckets,
+                &display::DisplayOptions {
+                    no_guilt: rc.no_guilt,
+                    no_color: rc.no_color,
+                    by_model: false,
+                    show_trends: false,
+                    show_sparklines: false,
+                    show_cumulative: false,
+                    show_efficiency: false,
+                    budget_co2_grams: None,
+                    show_offset: false,
+                },
+            );
         }
         return Ok(());
     }
 
     // Early-exit: heatmap
     if args.heatmap {
-        let buckets = aggregate::aggregate_with(records, cli::Period::Daily, rc.co2_kg_per_kwh, rc.pue);
+        let buckets =
+            aggregate::aggregate_with(records, cli::Period::Daily, rc.co2_kg_per_kwh, rc.pue);
         display::heatmap::render_heatmap(&buckets, 12);
         return Ok(());
     }
@@ -157,14 +162,20 @@ fn main() -> Result<()> {
     if let Some(ref periods) = args.diff {
         let (since_a, until_a) = dateparse::parse_diff_period(&periods[0])?;
         let (since_b, until_b) = dateparse::parse_diff_period(&periods[1])?;
-        let records_a: Vec<_> = records.iter()
+        let records_a: Vec<_> = records
+            .iter()
             .filter(|r| r.timestamp >= since_a && r.timestamp < until_a)
-            .cloned().collect();
-        let records_b: Vec<_> = records.iter()
+            .cloned()
+            .collect();
+        let records_b: Vec<_> = records
+            .iter()
             .filter(|r| r.timestamp >= since_b && r.timestamp < until_b)
-            .cloned().collect();
-        let buckets_a = aggregate::aggregate_with(records_a, Period::Total, rc.co2_kg_per_kwh, rc.pue);
-        let buckets_b = aggregate::aggregate_with(records_b, Period::Total, rc.co2_kg_per_kwh, rc.pue);
+            .cloned()
+            .collect();
+        let buckets_a =
+            aggregate::aggregate_with(records_a, Period::Total, rc.co2_kg_per_kwh, rc.pue);
+        let buckets_b =
+            aggregate::aggregate_with(records_b, Period::Total, rc.co2_kg_per_kwh, rc.pue);
         display::diff::render_diff(&periods[0], &buckets_a, &periods[1], &buckets_b);
         return Ok(());
     }

@@ -45,7 +45,10 @@ pub fn render_session_detail(records: &[TokenRecord], query: &str) {
     let mut total_cache_create = 0u64;
 
     for r in &matched {
-        let total = r.input_tokens + r.output_tokens + r.cache_read_input_tokens + r.cache_creation_input_tokens;
+        let total = r.input_tokens
+            + r.output_tokens
+            + r.cache_read_input_tokens
+            + r.cache_creation_input_tokens;
         total_input += r.input_tokens;
         total_output += r.output_tokens;
         total_cache_read += r.cache_read_input_tokens;
