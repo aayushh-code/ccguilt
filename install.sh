@@ -28,7 +28,7 @@ if [ "$OS" != "Linux" ]; then
     exit 1
 fi
 
-echo "Downloading ccguilt v0.1.0..."
+echo "Downloading ccguilt v0.2.1..."
 TMP=$(mktemp)
 if command -v curl &>/dev/null; then
     curl -sSL -o "$TMP" "$BINARY_URL"
