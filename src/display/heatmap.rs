@@ -26,7 +26,7 @@ pub fn render_heatmap(buckets: &[UsageBucket], weeks: usize) {
     println!();
     println!("  {}", "CO2 Heatmap (daily emissions)".bold().underline());
     println!();
-    println!("  {:>10} {}", "", "Mon Tue Wed Thu Fri Sat Sun");
+    println!("  {:>10} Mon Tue Wed Thu Fri Sat Sun", "");
 
     // Align to Monday of the start week
     let start_weekday = start.weekday().num_days_from_monday();

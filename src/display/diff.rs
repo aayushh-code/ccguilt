@@ -54,7 +54,7 @@ pub fn render_diff(
     add_diff_row(&mut table, "Cost", cost_a, cost_b, format_cost);
     add_diff_row(&mut table, "CO2", co2_a, co2_b, format_co2);
     add_diff_row(&mut table, "Water", water_a, water_b, format_water);
-    add_diff_row(&mut table, "Trees", trees_a, trees_b, |v| format_trees(v));
+    add_diff_row(&mut table, "Trees", trees_a, trees_b, format_trees);
 
     println!("{table}");
 }
