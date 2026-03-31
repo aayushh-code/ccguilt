@@ -61,6 +61,14 @@ else
 fi
 
 echo ""
+echo "Setting up shell completions..."
+if "${INSTALL_DIR}/${BINARY_NAME}" --setup-completions 2>&1; then
+    echo "  Tab completion enabled!"
+else
+    echo "  Run 'ccguilt --setup-completions' to enable tab completion."
+fi
+
+echo ""
 echo "Done! Run 'ccguilt daily' to see your environmental destruction."
 echo "Run 'ccguilt --help' for all options."
 echo ""

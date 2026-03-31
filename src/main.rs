@@ -2,6 +2,7 @@ mod achievements;
 mod aggregate;
 mod calc;
 mod cli;
+mod completions;
 mod config;
 mod config_file;
 mod data;
@@ -42,6 +43,11 @@ fn main() -> Result<()> {
             &mut std::io::stdout(),
         );
         return Ok(());
+    }
+
+    // Handle completion installation early exit
+    if let Some(ref shell_arg) = args.setup_completions {
+        return completions::setup_completions(shell_arg);
     }
 
     // Load config file and merge with CLI

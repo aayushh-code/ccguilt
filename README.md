@@ -18,21 +18,129 @@ cd ccguilt
 cargo install --path .
 ```
 
+## Shell Completions
+
+Enable tab completion for all flags and options:
+
+```bash
+ccguilt --setup-completions          # auto-detect your shell
+ccguilt --setup-completions bash     # explicit shell
+ccguilt --setup-completions zsh
+ccguilt --setup-completions fish
+```
+
+Restart your terminal afterward. You can also generate raw completion scripts for manual setup:
+
+```bash
+ccguilt --completions bash > ~/.local/share/bash-completion/completions/ccguilt
+```
+
 ## Usage
 
-```
+### Report Periods
+
+```bash
 ccguilt daily                        # per-day breakdown (default)
 ccguilt weekly                       # per-week
 ccguilt monthly                      # per-month
 ccguilt session                      # per-session
 ccguilt total                        # all-time summary
+```
 
-ccguilt daily --since 2026-03-01     # filter by date
-ccguilt daily --until 2026-03-15
-ccguilt daily --json                 # machine-readable JSON output
-ccguilt total --fast                 # quick mode via stats-cache
-ccguilt daily --project myproject    # filter by project
+### Date Filtering
+
+```bash
+ccguilt daily --since 2026-03-01     # from a specific date
+ccguilt daily --until 2026-03-15     # up to a specific date
+ccguilt daily --since 7d             # last 7 days
+ccguilt daily --since 2w             # last 2 weeks
+ccguilt daily --since last-week      # last week
+ccguilt daily --since yesterday      # since yesterday
+ccguilt daily --since monday         # since Monday
+```
+
+### Project Filtering
+
+```bash
+ccguilt daily --project myproject           # filter by project (substring match)
+ccguilt daily --project-regex "my.*proj"    # filter by project (regex)
+```
+
+### Data Mode
+
+```bash
+ccguilt total --fast                 # quick mode via stats-cache.json
+ccguilt daily --claude-home /path    # custom Claude data directory
+```
+
+### Analysis Options
+
+```bash
+ccguilt daily --by-model             # show per-model token breakdown
+ccguilt daily --sort co2             # sort by metric (co2, cost, tokens, energy, water)
+ccguilt daily --top 5                # show only top 5 periods
+ccguilt daily --group-by project     # group by project instead of time
+ccguilt daily --group-by model       # group by model instead of time
+ccguilt daily --efficiency           # show $/Mtok, gCO2/Mtok metrics
+ccguilt daily --cumulative           # show cumulative running totals
+ccguilt daily --min-co2 10           # hide periods below 10g CO2
+ccguilt daily --min-cost 1.0         # hide periods below $1.00
+ccguilt daily --budget 50kg          # show progress toward a carbon budget
+ccguilt --compare proj1,proj2        # compare projects side-by-side
+```
+
+### Output Formats
+
+```bash
+ccguilt daily --json                 # JSON output
+ccguilt daily --csv                  # CSV output
+ccguilt daily --markdown             # Markdown table
+ccguilt daily --html report.html     # standalone HTML report
+ccguilt daily --output report.csv    # auto-detect format from extension (.csv, .json, .html, .md)
+```
+
+### Visualization
+
+```bash
+ccguilt daily --chart                # bar chart of CO2/water per period
+ccguilt daily --sparkline            # sparklines in table/footer
+ccguilt --heatmap                    # calendar heatmap of daily CO2
+```
+
+### Display Options
+
+```bash
 ccguilt daily --no-guilt             # hide satirical commentary (coward mode)
+ccguilt daily --no-color             # disable colored output (also respects NO_COLOR env)
+ccguilt daily -q                     # quiet mode: suppress progress messages
+ccguilt daily -v                     # verbose mode: show per-file parsing details
+```
+
+### Interactive & Watch Modes
+
+```bash
+ccguilt -i                           # launch interactive TUI
+ccguilt --watch                      # re-run every 30 seconds
+ccguilt --watch 10                   # re-run every 10 seconds
+```
+
+### Comparison & Insights
+
+```bash
+ccguilt --diff last-week this-week   # compare two time periods
+ccguilt --recommend                  # model cost/CO2 optimization tips
+ccguilt --achievements               # Hall of Shame (unlocked achievements)
+ccguilt --offset                     # carbon offset options
+ccguilt --projects                   # all projects ranked by impact
+ccguilt --session abc123             # detailed timeline for a session (substring match on ID)
+```
+
+### Utility
+
+```bash
+ccguilt --hook-output                # single compact line (for git hooks)
+ccguilt --increase-guilt             # check for updates and self-update
+ccguilt --version                    # print version
 ```
 
 ## What it shows
