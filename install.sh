@@ -3,7 +3,7 @@
 set -e
 
 REPO="http://192.168.100.195/aayush/ccguilt"
-BINARY_URL="${REPO}/releases/download/v0.2.0/ccguilt-linux-amd64"
+BINARY_URL="${REPO}/releases/download/v0.2.1/ccguilt-linux-amd64"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="ccguilt"
 
