@@ -1,6 +1,6 @@
 [package]
 name = "ccguilt"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 description = "Claude Code Guilt Trip — satirical environmental impact tracker for your AI habit"
 license = "MIT"
