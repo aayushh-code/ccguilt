@@ -8,11 +8,7 @@ use crate::cli::Args;
 
 fn detect_shell() -> Result<Shell> {
     let shell_env = std::env::var("SHELL").unwrap_or_default();
-    let name = shell_env
-        .rsplit('/')
-        .next()
-        .unwrap_or("")
-        .to_lowercase();
+    let name = shell_env.rsplit('/').next().unwrap_or("").to_lowercase();
 
     match name.as_str() {
         "bash" => Ok(Shell::Bash),
@@ -29,7 +25,8 @@ fn detect_shell() -> Result<Shell> {
 }
 
 fn completion_install_path(shell: Shell) -> Result<PathBuf> {
-    let home = dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
+    let home =
+        dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Cannot determine home directory"))?;
 
     match shell {
         Shell::Bash => Ok(home.join(".local/share/bash-completion/completions/ccguilt")),
@@ -105,7 +102,10 @@ pub fn setup_completions(shell_arg: &str) -> Result<()> {
             );
         }
         _ => {
-            eprintln!("  {} Restart your shell to enable completions.", ">>".bold());
+            eprintln!(
+                "  {} Restart your shell to enable completions.",
+                ">>".bold()
+            );
         }
     }
 
