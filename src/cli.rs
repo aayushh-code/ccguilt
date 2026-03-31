@@ -144,6 +144,10 @@ pub struct Args {
     #[arg(long)]
     pub completions: Option<clap_complete::Shell>,
 
+    /// Install shell completions to the appropriate system location
+    #[arg(long, default_missing_value = "auto", num_args = 0..=1)]
+    pub setup_completions: Option<String>,
+
     /// Check for updates and self-update if available
     #[arg(long)]
     pub increase_guilt: bool,
