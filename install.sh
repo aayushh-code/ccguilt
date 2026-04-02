@@ -3,7 +3,7 @@
 set -e
 
 REPO="http://192.168.100.195/aayush/ccguilt"
-BINARY_URL="${REPO}/releases/download/v0.2.2/ccguilt-linux-amd64"
+BINARY_URL="${REPO}/releases/download/v0.3.0/ccguilt-linux-amd64"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="ccguilt"
 
@@ -28,7 +28,7 @@ if [ "$OS" != "Linux" ]; then
     exit 1
 fi
 
-echo "Downloading ccguilt v0.2.2..."
+echo "Downloading ccguilt v0.3.0..."
 TMP=$(mktemp)
 if command -v curl &>/dev/null; then
     curl -sSL -o "$TMP" "$BINARY_URL"
