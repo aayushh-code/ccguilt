@@ -184,6 +184,14 @@ pub struct Args {
     /// Show a calendar heatmap of daily CO2 emissions
     #[arg(long)]
     pub heatmap: bool,
+
+    /// Skip the SQLite cache, parse JSONL files directly
+    #[arg(long)]
+    pub no_db: bool,
+
+    /// Rebuild the SQLite database from scratch
+    #[arg(long)]
+    pub rebuild_db: bool,
 }
 
 #[derive(ValueEnum, Clone, Debug, Copy, PartialEq, Eq)]

@@ -386,6 +386,47 @@ fn deep_scan(
         std::process::exit(1);
     }
 
+    // Try SQLite-backed incremental path
+    if !args.no_db {
+        let db_path = data_dir.base.join("ccguilt.db");
+        match data::db::load_records(
+            &db_path,
+            &files,
+            since,
+            until,
+            args.project.as_deref(),
+            args.rebuild_db,
+            rc.quiet,
+        ) {
+            Ok(records) => {
+                if !rc.quiet {
+                    eprintln!(
+                        "  {} Loaded {} records (SQLite-backed)",
+                        ">>".green().bold(),
+                        records.len()
+                    );
+                }
+
+                if records.is_empty() && !rc.quiet {
+                    eprintln!();
+                    eprintln!("No data found in the specified range. The planet thanks you.");
+                }
+
+                return Ok(records);
+            }
+            Err(e) => {
+                if rc.verbose {
+                    eprintln!(
+                        "  {} SQLite cache unavailable ({}), falling back to JSONL scan",
+                        ">>".yellow().bold(),
+                        e
+                    );
+                }
+            }
+        }
+    }
+
+    // Fallback: direct JSONL parsing
     if !rc.quiet {
         eprintln!(
             "  {} Deep scan: parsing {} session files...",

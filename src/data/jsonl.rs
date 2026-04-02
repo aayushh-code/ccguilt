@@ -51,7 +51,7 @@ pub fn parse_jsonl_files(
     Ok(all_records)
 }
 
-fn parse_single_file(
+pub fn parse_single_file(
     path: &PathBuf,
     since: Option<DateTime<Utc>>,
     until: Option<DateTime<Utc>>,

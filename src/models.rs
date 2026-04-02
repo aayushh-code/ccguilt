@@ -43,6 +43,24 @@ impl ModelTier {
         }
     }
 
+    pub fn as_db_str(&self) -> &'static str {
+        match self {
+            ModelTier::Opus => "Opus",
+            ModelTier::Sonnet => "Sonnet",
+            ModelTier::Haiku => "Haiku",
+            ModelTier::Unknown => "Unknown",
+        }
+    }
+
+    pub fn from_db_str(s: &str) -> Self {
+        match s {
+            "Opus" => ModelTier::Opus,
+            "Sonnet" => ModelTier::Sonnet,
+            "Haiku" => ModelTier::Haiku,
+            _ => ModelTier::Unknown,
+        }
+    }
+
     pub fn display_name(&self) -> &'static str {
         match self {
             ModelTier::Opus => "Opus",
