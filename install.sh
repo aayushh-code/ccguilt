@@ -1,9 +1,10 @@
 #!/bin/bash
-# ccguilt installer — curl -sSL http://192.168.100.195/aayush/ccguilt/raw/branch/master/install.sh | bash
+# ccguilt installer
+# curl -sSL https://raw.githubusercontent.com/aayushh-code/ccguilt/master/install.sh | bash
 set -e
 
-REPO="http://192.168.100.195/aayush/ccguilt"
-BINARY_URL="${REPO}/releases/download/v0.3.0/ccguilt-linux-amd64"
+REPO="aayushh-code/ccguilt"
+VERSION="latest"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="ccguilt"
 
@@ -13,27 +14,46 @@ echo "  Claude Code Guilt Trip — because the planet wasn't suffering enough"
 echo "==================================================================="
 echo ""
 
-# Check architecture
-ARCH=$(uname -m)
-if [ "$ARCH" != "x86_64" ]; then
-    echo "Error: Only x86_64 (amd64) binaries are available right now."
-    echo "Your architecture: $ARCH"
-    exit 1
-fi
-
+# Detect OS
 OS=$(uname -s)
-if [ "$OS" != "Linux" ]; then
-    echo "Error: Only Linux binaries are available right now."
-    echo "Your OS: $OS"
-    exit 1
+case "$OS" in
+    Linux)  OS_TAG="linux" ;;
+    Darwin) OS_TAG="macos" ;;
+    *)
+        echo "Error: Unsupported OS: $OS"
+        exit 1
+        ;;
+esac
+
+# Detect architecture
+ARCH=$(uname -m)
+case "$ARCH" in
+    x86_64|amd64)   ARCH_TAG="x86_64" ;;
+    aarch64|arm64)   ARCH_TAG="aarch64" ;;
+    *)
+        echo "Error: Unsupported architecture: $ARCH"
+        exit 1
+        ;;
+esac
+
+ASSET_NAME="ccguilt-${OS_TAG}-${ARCH_TAG}"
+
+# Get latest release download URL
+if [ "$VERSION" = "latest" ]; then
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/latest/download/${ASSET_NAME}"
+else
+    DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${VERSION}/${ASSET_NAME}"
 fi
 
-echo "Downloading ccguilt v0.3.0..."
+echo "Detected: ${OS} ${ARCH}"
+echo "Downloading ${ASSET_NAME}..."
+echo ""
+
 TMP=$(mktemp)
 if command -v curl &>/dev/null; then
-    curl -sSL -o "$TMP" "$BINARY_URL"
+    curl -sSL -o "$TMP" "$DOWNLOAD_URL"
 elif command -v wget &>/dev/null; then
-    wget -q -O "$TMP" "$BINARY_URL"
+    wget -q -O "$TMP" "$DOWNLOAD_URL"
 else
     echo "Error: curl or wget required"
     exit 1
@@ -41,7 +61,15 @@ fi
 
 chmod +x "$TMP"
 
-# Try /usr/local/bin first, fall back to ~/.local/bin
+# Verify it's a real binary
+if ! file "$TMP" | grep -q "executable"; then
+    echo "Error: Downloaded file is not a valid binary. Release may not exist yet."
+    echo "Check: https://github.com/${REPO}/releases"
+    rm -f "$TMP"
+    exit 1
+fi
+
+# Install
 if [ -w "$INSTALL_DIR" ]; then
     mv "$TMP" "${INSTALL_DIR}/${BINARY_NAME}"
     echo "Installed to ${INSTALL_DIR}/${BINARY_NAME}"
@@ -61,15 +89,7 @@ else
 fi
 
 echo ""
-echo "Setting up shell completions..."
-if "${INSTALL_DIR}/${BINARY_NAME}" --setup-completions 2>&1; then
-    echo "  Tab completion enabled!"
-else
-    echo "  Run 'ccguilt --setup-completions' to enable tab completion."
-fi
-
-echo ""
-echo "Done! Run 'ccguilt daily' to see your environmental destruction."
-echo "Run 'ccguilt --help' for all options."
+echo "Done! Run 'ccguilt --version' to verify."
+echo "Run 'ccguilt daily' to see your environmental destruction."
 echo ""
 echo "Remember: this report was installed using energy. You're welcome, planet."
