@@ -7,13 +7,19 @@ Reads your local Claude Code session data and computes token usage, API cost, en
 ## Install
 
 ```bash
+curl -sSL https://raw.githubusercontent.com/aayushh-code/ccguilt/master/install.sh | bash
+```
+
+Or from Gitea (LAN only):
+
+```bash
 curl -sSL http://192.168.100.195/aayush/ccguilt/raw/branch/master/install.sh | bash
 ```
 
 Or build from source:
 
 ```bash
-git clone http://192.168.100.195/aayush/ccguilt.git
+git clone https://github.com/aayushh-code/ccguilt.git
 cd ccguilt
 cargo install --path .
 ```
