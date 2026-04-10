@@ -157,6 +157,10 @@ pub struct Args {
     #[arg(long)]
     pub mcp: bool,
 
+    /// Auto-register ccguilt as an MCP server in Claude Code (one-shot setup)
+    #[arg(long)]
+    pub setup_mcp: bool,
+
     // ── New Features ──
     /// Compare two time periods (e.g., --diff last-week this-week)
     #[arg(long, num_args = 2)]

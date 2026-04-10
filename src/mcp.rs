@@ -322,3 +322,81 @@ pub async fn run_server() -> Result<()> {
     service.waiting().await?;
     Ok(())
 }
+
+// ── One-shot MCP registration with Claude Code ─────────────────────
+
+/// Auto-register ccguilt as an MCP server in Claude Code's user config.
+/// Mirrors `--setup-completions` UX: one command, idempotent, friendly errors.
+pub fn setup_mcp() -> Result<()> {
+    use anyhow::{anyhow, Context};
+    use colored::Colorize;
+    use std::process::Command;
+
+    eprintln!(
+        "  {} Registering ccguilt MCP server with Claude Code...",
+        ">>".yellow().bold()
+    );
+
+    // Verify `claude` CLI is on PATH
+    let check = Command::new("claude").arg("--version").output();
+    match check {
+        Ok(out) if out.status.success() => {}
+        _ => {
+            return Err(anyhow!(
+                "'claude' CLI not found on PATH.\n   \
+                 Install Claude Code first: https://claude.com/code\n   \
+                 Then re-run: ccguilt --setup-mcp"
+            ));
+        }
+    }
+
+    // Resolve absolute path to current executable so Claude Code spawns the right binary
+    let self_exe = std::env::current_exe()
+        .context("could not determine current ccguilt executable path")?;
+
+    // Idempotent: remove any existing registration (user OR local scope) so re-running this
+    // upgrades a stale path or scope without complaint.
+    let _ = Command::new("claude")
+        .args(["mcp", "remove", "ccguilt", "-s", "user"])
+        .output();
+    let _ = Command::new("claude")
+        .args(["mcp", "remove", "ccguilt", "-s", "local"])
+        .output();
+
+    // Register at user scope so it works in every project
+    let output = Command::new("claude")
+        .args([
+            "mcp",
+            "add",
+            "--scope",
+            "user",
+            "ccguilt",
+            "--",
+            &self_exe.to_string_lossy(),
+            "--mcp",
+        ])
+        .output()
+        .context("failed to invoke `claude mcp add`")?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow!("`claude mcp add` failed: {}", stderr.trim()));
+    }
+
+    eprintln!(
+        "  {} Registered: {} {}",
+        ">>".green().bold(),
+        "ccguilt".bold(),
+        format!("({})", self_exe.display()).dimmed()
+    );
+    eprintln!(
+        "  {} Tools: ccguilt_today, ccguilt_total, ccguilt_range",
+        ">>".dimmed()
+    );
+    eprintln!(
+        "  {} Open a new Claude Code session and try: \"how much CO2 have I burned today?\"",
+        ">>".dimmed()
+    );
+
+    Ok(())
+}

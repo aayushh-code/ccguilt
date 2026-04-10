@@ -91,5 +91,17 @@ fi
 echo ""
 echo "Done! Run 'ccguilt --version' to verify."
 echo "Run 'ccguilt daily' to see your environmental destruction."
+
+# Auto-register MCP server if Claude Code is installed
+if command -v claude &>/dev/null; then
+    echo ""
+    echo "Detected Claude Code — registering ccguilt MCP server..."
+    if "${INSTALL_DIR}/${BINARY_NAME}" --setup-mcp 2>&1; then
+        echo "  Open a new Claude Code session and try: \"how much CO2 have I burned today?\""
+    else
+        echo "  (MCP auto-registration failed — run 'ccguilt --setup-mcp' manually if you want it.)"
+    fi
+fi
+
 echo ""
 echo "Remember: this report was installed using energy. You're welcome, planet."

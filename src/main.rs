@@ -40,6 +40,11 @@ fn main() -> Result<()> {
         return tokio::runtime::Runtime::new()?.block_on(mcp::run_server());
     }
 
+    // Handle one-shot MCP registration with Claude Code
+    if args.setup_mcp {
+        return mcp::setup_mcp();
+    }
+
     // Handle shell completions early exit
     if let Some(shell) = args.completions {
         clap_complete::generate(

@@ -147,6 +147,7 @@ ccguilt --session abc123             # detailed timeline for a session (substrin
 ccguilt --hook-output                # single compact line (for git hooks)
 ccguilt --increase-guilt             # check for updates and self-update
 ccguilt --mcp                        # run as an MCP server (see below)
+ccguilt --setup-mcp                  # one-shot register MCP server with Claude Code
 ccguilt --version                    # print version
 ```
 
@@ -154,11 +155,13 @@ ccguilt --version                    # print version
 
 ccguilt can run as an MCP (Model Context Protocol) server so Claude Code can call it during your conversations to check usage in real time.
 
-Register it once:
+If you installed via `install.sh` and have Claude Code on your PATH, it's already registered — skip ahead to the tools list. Otherwise:
 
 ```bash
-claude mcp add ccguilt -- ccguilt --mcp
+ccguilt --setup-mcp        # one-shot, idempotent, registers at user scope
 ```
+
+(If you'd rather do it manually: `claude mcp add --scope user ccguilt -- $(which ccguilt) --mcp`.)
 
 Then in any Claude Code session, ask things like *"how much CO2 have I burned today?"* and Claude will call the ccguilt tools directly.
 
