@@ -146,8 +146,33 @@ ccguilt --session abc123             # detailed timeline for a session (substrin
 ```bash
 ccguilt --hook-output                # single compact line (for git hooks)
 ccguilt --increase-guilt             # check for updates and self-update
+ccguilt --mcp                        # run as an MCP server (see below)
 ccguilt --version                    # print version
 ```
+
+## MCP Server
+
+ccguilt can run as an MCP (Model Context Protocol) server so Claude Code can call it during your conversations to check usage in real time.
+
+Register it once:
+
+```bash
+claude mcp add ccguilt -- ccguilt --mcp
+```
+
+Then in any Claude Code session, ask things like *"how much CO2 have I burned today?"* and Claude will call the ccguilt tools directly.
+
+### Tools exposed
+
+| Tool | Purpose |
+|------|---------|
+| `ccguilt_today` | Today's tokens, cost, energy, CO2, water, trees, guilt level |
+| `ccguilt_total` | All-time cumulative impact |
+| `ccguilt_range` | Custom date range — `since`/`until` accept YYYY-MM-DD, `7d`, `last-week`, `yesterday`, `monday`, etc. |
+
+### Tree-fallen warnings
+
+Each tool response may include a `tree_fallen_warning` field with a satirical message — but only when a *new* tree's worth of CO2 (22 kg) has accumulated since the last warning. State is persisted in `~/.local/share/ccguilt/mcp_state.json`, so you'll see one warning per tree, naturally rate-limited. On first install the current floor is recorded silently — historical accumulation doesn't trigger a flood of warnings.
 
 ## What it shows
 

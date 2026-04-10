@@ -152,6 +152,11 @@ pub struct Args {
     #[arg(long)]
     pub increase_guilt: bool,
 
+    /// Run as an MCP (Model Context Protocol) server over stdio.
+    /// Register with: claude mcp add ccguilt -- ccguilt --mcp
+    #[arg(long)]
+    pub mcp: bool,
+
     // ── New Features ──
     /// Compare two time periods (e.g., --diff last-week this-week)
     #[arg(long, num_args = 2)]
