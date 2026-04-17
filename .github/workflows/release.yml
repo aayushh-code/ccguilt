@@ -37,9 +37,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: "1.94.0"
           targets: ${{ matrix.target }}
+          components: clippy, rustfmt
 
       - name: Install cross-compilation tools
         if: matrix.target == 'aarch64-unknown-linux-gnu'
