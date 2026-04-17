@@ -16,7 +16,7 @@ pub mod token_breakdown;
 
 use colored::Colorize;
 
-use crate::data::discovery::ClaudeDataDir;
+use crate::data::discovery::{ClaudeDataDir, OpenCodeDataDir};
 use crate::forecast;
 use crate::models::UsageBucket;
 use crate::runtime::RuntimeConfig;
@@ -65,6 +65,45 @@ pub fn print_metadata(
     };
 
     println!("  {}: {}", "Data".bold(), source);
+    if let Some(filter) = project_filter {
+        println!("  {}: {}", "Project filter".bold(), filter);
+    }
+    println!();
+}
+
+pub fn print_multi_source_metadata(
+    data_dir: &ClaudeDataDir,
+    _opencode_dir: &OpenCodeDataDir,
+    include_claude: bool,
+    include_opencode: bool,
+    project_filter: Option<&str>,
+    fast: bool,
+) {
+    let mut parts = Vec::new();
+
+    if include_claude {
+        if fast {
+            parts.push("Fast scan (stats-cache.json)".yellow().to_string());
+        } else {
+            let file_count = data_dir.jsonl_files(project_filter).len();
+            parts.push(
+                format!(
+                    "Claude Code ({} sessions, {} projects)",
+                    file_count,
+                    data_dir.project_count()
+                )
+                .green()
+                .to_string(),
+            );
+        }
+    }
+
+    if include_opencode {
+        parts.push("OpenCode".cyan().to_string());
+    }
+
+    let source = parts.join(" + ");
+    println!("  {}: {}", "Sources".bold(), source);
     if let Some(filter) = project_filter {
         println!("  {}: {}", "Project filter".bold(), filter);
     }

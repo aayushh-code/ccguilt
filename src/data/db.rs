@@ -1,21 +1,20 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeZone, Utc};
 use rayon::prelude::*;
 use rusqlite::{params, Connection};
 use std::path::{Path, PathBuf};
 
 use crate::models::{ModelTier, TokenRecord};
 
-const SCHEMA_VERSION: i64 = 1;
+#[allow(dead_code)]
+const SCHEMA_VERSION: i64 = 2;
 
-/// Metadata about a JSONL file on disk.
 struct FileInfo {
     path: PathBuf,
     mtime_secs: i64,
     file_size: i64,
 }
 
-/// Metadata about a JSONL file as recorded in the DB.
 struct IngestedFileInfo {
     mtime_secs: i64,
     file_size: i64,
@@ -30,35 +29,30 @@ fn open_db(db_path: &Path) -> Result<Connection> {
 }
 
 fn ensure_schema(conn: &Connection) -> Result<()> {
-    // Check if schema_version table exists
     let has_schema: bool = conn
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='schema_version'")?
         .exists([])?;
 
     if !has_schema {
-        create_schema_v1(conn)?;
+        create_schema_v2(conn)?;
         return Ok(());
     }
 
     let version: i64 =
         conn.query_row("SELECT version FROM schema_version", [], |row| row.get(0))?;
 
-    if version < SCHEMA_VERSION {
-        // Future migrations would go here
-        conn.execute(
-            "UPDATE schema_version SET version = ?1",
-            params![SCHEMA_VERSION],
-        )?;
+    if version < 2 {
+        migrate_v1_to_v2(conn)?;
     }
 
     Ok(())
 }
 
-fn create_schema_v1(conn: &Connection) -> Result<()> {
+fn create_schema_v2(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "
         CREATE TABLE schema_version (version INTEGER NOT NULL);
-        INSERT INTO schema_version (version) VALUES (1);
+        INSERT INTO schema_version (version) VALUES (2);
 
         CREATE TABLE ingested_files (
             file_path   TEXT PRIMARY KEY,
@@ -77,19 +71,54 @@ fn create_schema_v1(conn: &Connection) -> Result<()> {
             output_tokens               INTEGER NOT NULL,
             cache_creation_input_tokens INTEGER NOT NULL,
             cache_read_input_tokens     INTEGER NOT NULL,
-            source_file                 TEXT NOT NULL
+            source_file                 TEXT NOT NULL,
+            source_type                 TEXT NOT NULL DEFAULT 'claude'
         );
 
         CREATE INDEX idx_records_timestamp ON token_records(timestamp);
         CREATE INDEX idx_records_session ON token_records(session_id);
         CREATE INDEX idx_records_project ON token_records(project_name);
         CREATE INDEX idx_records_source ON token_records(source_file);
+        CREATE INDEX idx_records_source_type ON token_records(source_type);
+
+        CREATE TABLE ingested_opencode (
+            db_mtime_secs  INTEGER NOT NULL,
+            db_file_size   INTEGER NOT NULL,
+            message_count  INTEGER NOT NULL,
+            ingested_at    TEXT NOT NULL
+        );
+
+        CREATE TABLE opencode_ingested_messages (
+            message_id TEXT PRIMARY KEY
+        );
         ",
     )?;
     Ok(())
 }
 
-/// Stat JSONL files on disk to get mtime and size.
+fn migrate_v1_to_v2(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "
+        ALTER TABLE token_records ADD COLUMN source_type TEXT NOT NULL DEFAULT 'claude';
+        CREATE INDEX idx_records_source_type ON token_records(source_type);
+
+        CREATE TABLE ingested_opencode (
+            db_mtime_secs  INTEGER NOT NULL,
+            db_file_size   INTEGER NOT NULL,
+            message_count  INTEGER NOT NULL,
+            ingested_at    TEXT NOT NULL
+        );
+
+        CREATE TABLE opencode_ingested_messages (
+            message_id TEXT PRIMARY KEY
+        );
+
+        UPDATE schema_version SET version = 2;
+        ",
+    )?;
+    Ok(())
+}
+
 fn stat_files(paths: &[PathBuf]) -> Vec<FileInfo> {
     paths
         .iter()
@@ -105,9 +134,7 @@ fn stat_files(paths: &[PathBuf]) -> Vec<FileInfo> {
         .collect()
 }
 
-/// Determine which files need (re-)ingestion and which DB entries are orphaned.
 fn classify_files(conn: &Connection, disk_files: &[FileInfo]) -> Result<Vec<usize>> {
-    // Load all ingested file info from DB
     let mut stmt = conn.prepare("SELECT file_path, mtime_secs, file_size FROM ingested_files")?;
     let db_files: std::collections::HashMap<String, IngestedFileInfo> = stmt
         .query_map([], |row| {
@@ -122,7 +149,6 @@ fn classify_files(conn: &Connection, disk_files: &[FileInfo]) -> Result<Vec<usiz
         .filter_map(|r| r.ok())
         .collect();
 
-    // Find files that need ingestion (new or changed)
     let mut need_ingestion: Vec<usize> = Vec::new();
 
     for (i, fi) in disk_files.iter().enumerate() {
@@ -141,7 +167,6 @@ fn classify_files(conn: &Connection, disk_files: &[FileInfo]) -> Result<Vec<usiz
     Ok(need_ingestion)
 }
 
-/// Insert token records for a single file into the database.
 fn insert_records(
     conn: &Connection,
     source_file: &str,
@@ -154,8 +179,8 @@ fn insert_records(
             timestamp, session_id, project_name, model,
             input_tokens, output_tokens,
             cache_creation_input_tokens, cache_read_input_tokens,
-            source_file
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            source_file, source_type
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'claude')",
     )?;
 
     for r in records {
@@ -182,12 +207,12 @@ fn insert_records(
     Ok(())
 }
 
-/// Query all token records, optionally filtered by date range and/or project.
 fn query_records(
     conn: &Connection,
     since: Option<DateTime<Utc>>,
     until: Option<DateTime<Utc>>,
     project_filter: Option<&str>,
+    source_type_filter: Option<&str>,
 ) -> Result<Vec<TokenRecord>> {
     let mut sql = String::from(
         "SELECT timestamp, session_id, project_name, model,
@@ -208,6 +233,10 @@ fn query_records(
     if let Some(pf) = project_filter {
         param_values.push(format!("%{}%", pf));
         sql.push_str(&format!(" AND project_name LIKE ?{}", param_values.len()));
+    }
+    if let Some(st) = source_type_filter {
+        param_values.push(st.to_string());
+        sql.push_str(&format!(" AND source_type = ?{}", param_values.len()));
     }
 
     sql.push_str(" ORDER BY timestamp");
@@ -241,29 +270,9 @@ fn query_records(
     Ok(records)
 }
 
-/// Main entry point: incrementally ingest new/changed files, then query.
-pub fn load_records(
-    db_path: &Path,
-    jsonl_files: &[PathBuf],
-    since: Option<DateTime<Utc>>,
-    until: Option<DateTime<Utc>>,
-    project_filter: Option<&str>,
-    rebuild: bool,
-    quiet: bool,
-) -> Result<Vec<TokenRecord>> {
-    // If rebuild requested, delete existing DB
-    if rebuild && db_path.exists() {
-        std::fs::remove_file(db_path)?;
-    }
-
-    let conn = open_db(db_path)?;
-    ensure_schema(&conn)?;
-
-    // Stat all JSONL files on disk
+fn ingest_claude_files(conn: &Connection, jsonl_files: &[PathBuf], quiet: bool) -> Result<()> {
     let disk_files = stat_files(jsonl_files);
-
-    // Classify files: which need ingestion (new or changed)
-    let need_ingestion_indices = classify_files(&conn, &disk_files)?;
+    let need_ingestion_indices = classify_files(conn, &disk_files)?;
 
     if !need_ingestion_indices.is_empty() {
         if !quiet {
@@ -275,13 +284,11 @@ pub fn load_records(
             );
         }
 
-        // Collect files that need parsing
         let files_to_parse: Vec<&FileInfo> = need_ingestion_indices
             .iter()
             .map(|&i| &disk_files[i])
             .collect();
 
-        // Parse in parallel (no date filters — store everything)
         let parsed: Vec<(&FileInfo, Vec<TokenRecord>)> = files_to_parse
             .par_iter()
             .filter_map(|fi| {
@@ -291,12 +298,10 @@ pub fn load_records(
             })
             .collect();
 
-        // Serial insert in one transaction
         conn.execute_batch("BEGIN")?;
 
         for (fi, records) in &parsed {
             let path_str = fi.path.to_string_lossy().to_string();
-            // Purge old records for this file if it was stale
             conn.execute(
                 "DELETE FROM token_records WHERE source_file = ?1",
                 params![path_str],
@@ -305,12 +310,261 @@ pub fn load_records(
                 "DELETE FROM ingested_files WHERE file_path = ?1",
                 params![path_str],
             )?;
-            insert_records(&conn, &path_str, records, fi.mtime_secs, fi.file_size)?;
+            insert_records(conn, &path_str, records, fi.mtime_secs, fi.file_size)?;
         }
 
         conn.execute_batch("COMMIT")?;
     }
 
-    // Query with date/project filters pushed to SQL
-    query_records(&conn, since, until, project_filter)
+    Ok(())
+}
+
+pub fn ingest_opencode(conn: &Connection, opencode_db_path: &Path, quiet: bool) -> Result<()> {
+    use std::os::unix::fs::MetadataExt;
+
+    let meta = std::fs::metadata(opencode_db_path)?;
+    let current_mtime = meta.mtime();
+    let current_size = meta.size() as i64;
+
+    let needs_full_ingestion = {
+        let mut stmt = conn.prepare("SELECT db_mtime_secs, db_file_size FROM ingested_opencode")?;
+        let existing: Option<(i64, i64)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?
+            .filter_map(|r| r.ok())
+            .next();
+
+        match existing {
+            None => true,
+            Some((m, s)) => m != current_mtime || s != current_size,
+        }
+    };
+
+    if !needs_full_ingestion {
+        return Ok(());
+    }
+
+    let oc_conn = Connection::open(opencode_db_path).with_context(|| {
+        format!(
+            "Failed to open OpenCode database at {}",
+            opencode_db_path.display()
+        )
+    })?;
+
+    let already_ingested: std::collections::HashSet<String> = {
+        let mut stmt = conn.prepare("SELECT message_id FROM opencode_ingested_messages")?;
+        let ids: std::collections::HashSet<String> = stmt
+            .query_map([], |row| row.get::<_, String>(0))?
+            .filter_map(|r| r.ok())
+            .collect();
+        ids
+    };
+
+    let mut oc_stmt = oc_conn.prepare(
+        "SELECT m.id, m.time_created, m.session_id, m.data, s.directory
+         FROM message m
+         JOIN session s ON m.session_id = s.id
+         WHERE json_extract(m.data, '$.role') = 'assistant'
+         ORDER BY m.time_created",
+    )?;
+
+    let mut new_count = 0usize;
+
+    conn.execute_batch("BEGIN")?;
+
+    let rows = oc_stmt.query_map([], |row| {
+        let id: String = row.get(0)?;
+        let time_ms: i64 = row.get(1)?;
+        let session_id: String = row.get(2)?;
+        let data_json: String = row.get(3)?;
+        let directory: String = row.get(4)?;
+        Ok((id, time_ms, session_id, data_json, directory))
+    })?;
+
+    let mut insert_stmt = conn.prepare_cached(
+        "INSERT INTO token_records (
+            timestamp, session_id, project_name, model,
+            input_tokens, output_tokens,
+            cache_creation_input_tokens, cache_read_input_tokens,
+            source_file, source_type
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'opencode')",
+    )?;
+
+    let mut msg_stmt = conn.prepare_cached(
+        "INSERT OR IGNORE INTO opencode_ingested_messages (message_id) VALUES (?1)",
+    )?;
+
+    for row_result in rows {
+        let (msg_id, time_ms, session_id, data_json, directory) = match row_result {
+            Ok(r) => r,
+            Err(_) => continue,
+        };
+
+        if already_ingested.contains(&msg_id) {
+            continue;
+        }
+
+        let data: serde_json::Value = match serde_json::from_str(&data_json) {
+            Ok(d) => d,
+            Err(_) => continue,
+        };
+
+        let model_id = match data.get("modelID").and_then(|v| v.as_str()) {
+            Some(m) => m,
+            None => continue,
+        };
+
+        let tier = match ModelTier::from_model_string(model_id) {
+            Some(t) => t,
+            None => continue,
+        };
+
+        let tokens = match data.get("tokens") {
+            Some(t) => t,
+            None => continue,
+        };
+
+        let input = tokens.get("input").and_then(|v| v.as_u64()).unwrap_or(0);
+        let output = tokens.get("output").and_then(|v| v.as_u64()).unwrap_or(0);
+        let cache_read = tokens
+            .get("cache")
+            .and_then(|c| c.get("read"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+        let cache_write = tokens
+            .get("cache")
+            .and_then(|c| c.get("write"))
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0);
+
+        if input == 0 && output == 0 && cache_read == 0 && cache_write == 0 {
+            continue;
+        }
+
+        let timestamp = Utc
+            .timestamp_millis_opt(time_ms)
+            .single()
+            .unwrap_or_else(Utc::now);
+
+        let project_name = std::path::Path::new(&directory)
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_else(|| directory.clone());
+
+        let source_file = format!("opencode:{}", msg_id);
+
+        insert_stmt.execute(params![
+            timestamp.to_rfc3339(),
+            session_id,
+            project_name,
+            tier.as_db_str(),
+            input,
+            output,
+            cache_write,
+            cache_read,
+            source_file,
+        ])?;
+
+        msg_stmt.execute(params![msg_id])?;
+        new_count += 1;
+    }
+
+    let now = Utc::now().to_rfc3339();
+    drop(msg_stmt);
+    drop(insert_stmt);
+
+    conn.execute("DELETE FROM ingested_opencode", [])?;
+    conn.execute(
+        "INSERT INTO ingested_opencode (db_mtime_secs, db_file_size, message_count, ingested_at)
+         VALUES (?1, ?2, ?3, ?4)",
+        params![current_mtime, current_size, new_count as i64, now],
+    )?;
+
+    conn.execute_batch("COMMIT")?;
+
+    if new_count > 0 && !quiet {
+        use colored::Colorize;
+        eprintln!(
+            "  {} Ingested {} new OpenCode messages into cache",
+            ">>".green().bold(),
+            new_count
+        );
+    }
+
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn load_records(
+    db_path: &Path,
+    jsonl_files: &[PathBuf],
+    since: Option<DateTime<Utc>>,
+    until: Option<DateTime<Utc>>,
+    project_filter: Option<&str>,
+    rebuild: bool,
+    quiet: bool,
+) -> Result<Vec<TokenRecord>> {
+    if rebuild && db_path.exists() {
+        std::fs::remove_file(db_path)?;
+    }
+
+    let conn = open_db(db_path)?;
+    ensure_schema(&conn)?;
+
+    ingest_claude_files(&conn, jsonl_files, quiet)?;
+
+    query_records(&conn, since, until, project_filter, None)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn load_all_records(
+    ccguilt_db_path: &Path,
+    jsonl_files: &[PathBuf],
+    opencode_db_path: Option<&Path>,
+    since: Option<DateTime<Utc>>,
+    until: Option<DateTime<Utc>>,
+    project_filter: Option<&str>,
+    rebuild: bool,
+    quiet: bool,
+    source_type_filter: Option<&str>,
+) -> Result<Vec<TokenRecord>> {
+    if rebuild && ccguilt_db_path.exists() {
+        std::fs::remove_file(ccguilt_db_path)?;
+    }
+
+    let conn = open_db(ccguilt_db_path)?;
+    ensure_schema(&conn)?;
+
+    if source_type_filter != Some("opencode") {
+        ingest_claude_files(&conn, jsonl_files, quiet)?;
+    }
+
+    if source_type_filter != Some("claude") {
+        if let Some(oc_path) = opencode_db_path {
+            if oc_path.exists() {
+                ingest_opencode(&conn, oc_path, quiet)?;
+            }
+        }
+    }
+
+    query_records(&conn, since, until, project_filter, source_type_filter)
+}
+
+#[allow(dead_code)]
+pub fn count_opencode_cached(conn: &Connection) -> Result<usize> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM token_records WHERE source_type = 'opencode'",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(count as usize)
+}
+
+#[allow(dead_code)]
+pub fn count_claude_cached(conn: &Connection) -> Result<usize> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM token_records WHERE source_type = 'claude'",
+        [],
+        |row| row.get(0),
+    )?;
+    Ok(count as usize)
 }

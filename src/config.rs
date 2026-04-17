@@ -33,6 +33,27 @@ pub const HAIKU_ENERGY: EnergyProfile = EnergyProfile {
     cache_creation_multiplier: 1.0,
 };
 
+pub const GLM5_ENERGY: EnergyProfile = EnergyProfile {
+    wh_per_input_token: 0.00030,
+    wh_per_output_token: 0.00030,
+    cache_read_multiplier: 0.10,
+    cache_creation_multiplier: 1.0,
+};
+
+pub const GLM47_ENERGY: EnergyProfile = EnergyProfile {
+    wh_per_input_token: 0.00040,
+    wh_per_output_token: 0.00040,
+    cache_read_multiplier: 0.10,
+    cache_creation_multiplier: 1.0,
+};
+
+pub const DEEPSEEK_R1_ENERGY: EnergyProfile = EnergyProfile {
+    wh_per_input_token: 0.00053,
+    wh_per_output_token: 0.00053,
+    cache_read_multiplier: 0.10,
+    cache_creation_multiplier: 1.0,
+};
+
 pub const UNKNOWN_ENERGY: EnergyProfile = EnergyProfile {
     wh_per_input_token: 0.00034,
     wh_per_output_token: 0.00034,
@@ -45,6 +66,9 @@ pub fn energy_profile(tier: ModelTier) -> &'static EnergyProfile {
         ModelTier::Opus => &OPUS_ENERGY,
         ModelTier::Sonnet => &SONNET_ENERGY,
         ModelTier::Haiku => &HAIKU_ENERGY,
+        ModelTier::Glm5 => &GLM5_ENERGY,
+        ModelTier::Glm47 => &GLM47_ENERGY,
+        ModelTier::DeepSeekReasoner => &DEEPSEEK_R1_ENERGY,
         ModelTier::Unknown => &UNKNOWN_ENERGY,
     }
 }
@@ -78,6 +102,27 @@ pub const HAIKU_PRICING: PricingProfile = PricingProfile {
     cache_creation_per_mtok: 1.0,
 };
 
+pub const GLM5_PRICING: PricingProfile = PricingProfile {
+    input_per_mtok: 0.50,
+    output_per_mtok: 1.50,
+    cache_read_per_mtok: 0.05,
+    cache_creation_per_mtok: 0.63,
+};
+
+pub const GLM47_PRICING: PricingProfile = PricingProfile {
+    input_per_mtok: 0.70,
+    output_per_mtok: 2.00,
+    cache_read_per_mtok: 0.07,
+    cache_creation_per_mtok: 0.88,
+};
+
+pub const DEEPSEEK_R1_PRICING: PricingProfile = PricingProfile {
+    input_per_mtok: 0.70,
+    output_per_mtok: 2.50,
+    cache_read_per_mtok: 0.14,
+    cache_creation_per_mtok: 0.88,
+};
+
 pub const UNKNOWN_PRICING: PricingProfile = PricingProfile {
     input_per_mtok: 3.0,
     output_per_mtok: 15.0,
@@ -90,6 +135,9 @@ pub fn pricing_profile(tier: ModelTier) -> &'static PricingProfile {
         ModelTier::Opus => &OPUS_PRICING,
         ModelTier::Sonnet => &SONNET_PRICING,
         ModelTier::Haiku => &HAIKU_PRICING,
+        ModelTier::Glm5 => &GLM5_PRICING,
+        ModelTier::Glm47 => &GLM47_PRICING,
+        ModelTier::DeepSeekReasoner => &DEEPSEEK_R1_PRICING,
         ModelTier::Unknown => &UNKNOWN_PRICING,
     }
 }
