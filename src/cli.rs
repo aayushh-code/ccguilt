@@ -47,6 +47,10 @@ pub struct Args {
     #[arg(long, env = "OPENCODE_HOME")]
     pub opencode_home: Option<PathBuf>,
 
+    /// Custom Gemini CLI data directory (default: ~/.gemini)
+    #[arg(long, env = "GEMINI_HOME")]
+    pub gemini_home: Option<PathBuf>,
+
     /// Data source(s) to scan (default: all)
     #[arg(long, value_enum, default_value = "all")]
     pub source: Source,
@@ -241,4 +245,5 @@ pub enum Source {
     All,
     Claude,
     OpenCode,
+    Gemini,
 }

@@ -134,6 +134,72 @@ impl OpenCodeDataDir {
     }
 }
 
+pub struct GeminiDataDir {
+    pub base: PathBuf,
+}
+
+impl GeminiDataDir {
+    pub fn new(base: PathBuf) -> Self {
+        Self { base }
+    }
+
+    pub fn default_path() -> Result<PathBuf> {
+        let home =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        Ok(home.join(".gemini"))
+    }
+
+    pub fn tmp_dir(&self) -> PathBuf {
+        self.base.join("tmp")
+    }
+
+    pub fn exists(&self) -> bool {
+        self.tmp_dir().exists()
+    }
+
+    pub fn session_files(&self, project_filter: Option<&str>) -> Vec<PathBuf> {
+        let tmp = self.tmp_dir();
+        if !tmp.exists() {
+            return Vec::new();
+        }
+
+        let mut files = Vec::new();
+
+        for entry in WalkDir::new(&tmp)
+            .min_depth(1)
+            .max_depth(4)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            let path = entry.path();
+            let filename = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            if filename.starts_with("session-") && filename.ends_with(".json") {
+                if let Some(filter) = project_filter {
+                    let project_name = Self::project_name_from_path(path);
+                    if !project_name.contains(filter) {
+                        continue;
+                    }
+                }
+                files.push(path.to_path_buf());
+            }
+        }
+
+        files
+    }
+
+    fn project_name_from_path(session_path: &Path) -> String {
+        session_path
+            .parent()
+            .and_then(|p| p.parent())
+            .and_then(|p| p.file_name())
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default()
+    }
+}
+
 pub fn decode_project_name(encoded: &str) -> String {
     if encoded.is_empty() {
         return String::new();
