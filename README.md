@@ -7,13 +7,19 @@ Reads your local Claude Code session data and computes token usage, API cost, en
 ## Install
 
 ```bash
+curl -sSL https://raw.githubusercontent.com/aayushh-code/ccguilt/master/install.sh | bash
+```
+
+Or from Gitea (LAN only):
+
+```bash
 curl -sSL http://192.168.100.195/aayush/ccguilt/raw/branch/master/install.sh | bash
 ```
 
 Or build from source:
 
 ```bash
-git clone http://192.168.100.195/aayush/ccguilt.git
+git clone https://github.com/aayushh-code/ccguilt.git
 cd ccguilt
 cargo install --path .
 ```
@@ -140,8 +146,36 @@ ccguilt --session abc123             # detailed timeline for a session (substrin
 ```bash
 ccguilt --hook-output                # single compact line (for git hooks)
 ccguilt --increase-guilt             # check for updates and self-update
+ccguilt --mcp                        # run as an MCP server (see below)
+ccguilt --setup-mcp                  # one-shot register MCP server with Claude Code
 ccguilt --version                    # print version
 ```
+
+## MCP Server
+
+ccguilt can run as an MCP (Model Context Protocol) server so Claude Code can call it during your conversations to check usage in real time.
+
+If you installed via `install.sh` and have Claude Code on your PATH, it's already registered — skip ahead to the tools list. Otherwise:
+
+```bash
+ccguilt --setup-mcp        # one-shot, idempotent, registers at user scope
+```
+
+(If you'd rather do it manually: `claude mcp add --scope user ccguilt -- $(which ccguilt) --mcp`.)
+
+Then in any Claude Code session, ask things like *"how much CO2 have I burned today?"* and Claude will call the ccguilt tools directly.
+
+### Tools exposed
+
+| Tool | Purpose |
+|------|---------|
+| `ccguilt_today` | Today's tokens, cost, energy, CO2, water, trees, guilt level |
+| `ccguilt_total` | All-time cumulative impact |
+| `ccguilt_range` | Custom date range — `since`/`until` accept YYYY-MM-DD, `7d`, `last-week`, `yesterday`, `monday`, etc. |
+
+### Tree-fallen warnings
+
+Each tool response may include a `tree_fallen_warning` field with a satirical message — but only when a *new* tree's worth of CO2 (22 kg) has accumulated since the last warning. State is persisted in `~/.local/share/ccguilt/mcp_state.json`, so you'll see one warning per tree, naturally rate-limited. On first install the current floor is recorded silently — historical accumulation doesn't trigger a flood of warnings.
 
 ## What it shows
 

@@ -74,6 +74,7 @@ pub fn energy_profile(tier: ModelTier) -> &'static EnergyProfile {
 }
 
 /// Pricing per million tokens (USD) — Anthropic API pricing
+/// Source: https://docs.anthropic.com/en/docs/about-claude/models (verified against LiteLLM)
 pub struct PricingProfile {
     pub input_per_mtok: f64,
     pub output_per_mtok: f64,
@@ -81,11 +82,12 @@ pub struct PricingProfile {
     pub cache_creation_per_mtok: f64,
 }
 
+/// Claude Opus 4.5/4.6 pricing (NOT Claude 3 Opus which was $15/$75)
 pub const OPUS_PRICING: PricingProfile = PricingProfile {
-    input_per_mtok: 15.0,
-    output_per_mtok: 75.0,
-    cache_read_per_mtok: 1.875,
-    cache_creation_per_mtok: 18.75,
+    input_per_mtok: 5.0,
+    output_per_mtok: 25.0,
+    cache_read_per_mtok: 0.50,
+    cache_creation_per_mtok: 6.25,
 };
 
 pub const SONNET_PRICING: PricingProfile = PricingProfile {
@@ -95,11 +97,12 @@ pub const SONNET_PRICING: PricingProfile = PricingProfile {
     cache_creation_per_mtok: 3.75,
 };
 
+/// Claude Haiku 4.5 pricing (NOT Claude 3 Haiku which was $0.80/$4)
 pub const HAIKU_PRICING: PricingProfile = PricingProfile {
-    input_per_mtok: 0.80,
-    output_per_mtok: 4.0,
-    cache_read_per_mtok: 0.08,
-    cache_creation_per_mtok: 1.0,
+    input_per_mtok: 1.0,
+    output_per_mtok: 5.0,
+    cache_read_per_mtok: 0.10,
+    cache_creation_per_mtok: 1.25,
 };
 
 pub const GLM5_PRICING: PricingProfile = PricingProfile {

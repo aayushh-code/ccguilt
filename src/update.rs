@@ -4,7 +4,32 @@ use std::fs;
 use std::process::Command;
 
 const GITEA_API: &str = "http://192.168.100.195/api/v1/repos/aayush/ccguilt/releases";
+const GITHUB_API: &str = "https://api.github.com/repos/aayushh-code/ccguilt/releases/latest";
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Map Rust arch constants to the asset naming conventions used in releases
+fn platform_asset_name() -> String {
+    let os = match std::env::consts::OS {
+        "macos" => "macos",
+        _ => "linux",
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" | "amd64" => "x86_64",
+        "aarch64" | "arm64" => "aarch64",
+        other => other,
+    };
+    format!("ccguilt-{}-{}", os, arch)
+}
+
+/// Map Rust arch constants to Gitea asset names (which use amd64 convention)
+fn gitea_asset_name() -> String {
+    let arch = match std::env::consts::ARCH {
+        "x86_64" | "amd64" => "amd64",
+        "aarch64" | "arm64" => "aarch64",
+        other => other,
+    };
+    format!("ccguilt-linux-{}", arch)
+}
 
 pub fn self_update() -> Result<()> {
     eprintln!(
@@ -13,27 +38,20 @@ pub fn self_update() -> Result<()> {
         CURRENT_VERSION
     );
 
-    // Fetch latest release from Gitea API using curl
-    let output = Command::new("curl")
-        .args(["-s", "-L", GITEA_API])
-        .output()
-        .map_err(|_| anyhow!("curl not found. Install curl to use --increase-guilt."))?;
+    // Try GitHub first (public, works from anywhere), fall back to Gitea (LAN only)
+    let (tag, download_url) = match try_github() {
+        Ok(result) => result,
+        Err(gh_err) => {
+            eprintln!(
+                "  {} GitHub unavailable ({}), trying Gitea...",
+                ">>".yellow().bold(),
+                gh_err
+            );
+            try_gitea()?
+        }
+    };
 
-    if !output.status.success() {
-        return Err(anyhow!("Failed to reach update server."));
-    }
-
-    let releases: Vec<serde_json::Value> = serde_json::from_slice(&output.stdout)
-        .map_err(|_| anyhow!("Failed to parse release info."))?;
-
-    let latest = releases
-        .first()
-        .ok_or_else(|| anyhow!("No releases found."))?;
-
-    let tag = latest["tag_name"]
-        .as_str()
-        .ok_or_else(|| anyhow!("Invalid release format."))?;
-    let latest_version = tag.strip_prefix('v').unwrap_or(tag);
+    let latest_version = tag.strip_prefix('v').unwrap_or(&tag);
 
     if latest_version == CURRENT_VERSION {
         eprintln!(
@@ -50,31 +68,6 @@ pub fn self_update() -> Result<()> {
         CURRENT_VERSION,
         latest_version
     );
-
-    // Find the right asset for this platform
-    let asset_name = format!(
-        "ccguilt-{}-{}",
-        std::env::consts::OS,
-        std::env::consts::ARCH
-    );
-    let download_url = latest["assets"]
-        .as_array()
-        .and_then(|assets| {
-            assets.iter().find_map(|a| {
-                let name = a["name"].as_str()?;
-                if name.contains(std::env::consts::OS) || name.contains(std::env::consts::ARCH) {
-                    // Gitea browser_download_url may use unresolvable hostname, build from API
-                    Some(format!(
-                        "http://192.168.100.195/aayush/ccguilt/releases/download/{}/{}",
-                        tag, name
-                    ))
-                } else {
-                    None
-                }
-            })
-        })
-        .ok_or_else(|| anyhow!("No binary found for {} in release {}.", asset_name, tag))?;
-
     eprintln!("  {} Downloading {}...", ">>".yellow().bold(), download_url);
 
     // Download to temp file
@@ -89,6 +82,16 @@ pub fn self_update() -> Result<()> {
     if !dl.success() {
         let _ = fs::remove_file(&tmp_path);
         return Err(anyhow!("Download failed."));
+    }
+
+    // Verify it's not an error page
+    let meta = fs::metadata(&tmp_path)?;
+    if meta.len() < 1024 {
+        let _ = fs::remove_file(&tmp_path);
+        return Err(anyhow!(
+            "Downloaded file too small ({}B) — release asset may not exist yet.",
+            meta.len()
+        ));
     }
 
     // Make executable
@@ -112,4 +115,75 @@ pub fn self_update() -> Result<()> {
     );
 
     Ok(())
+}
+
+fn try_github() -> Result<(String, String)> {
+    let output = Command::new("curl")
+        .args(["-s", "-L", "--connect-timeout", "5", GITHUB_API])
+        .output()
+        .map_err(|_| anyhow!("curl not found"))?;
+
+    if !output.status.success() {
+        return Err(anyhow!("GitHub API request failed"));
+    }
+
+    let release: serde_json::Value =
+        serde_json::from_slice(&output.stdout).map_err(|_| anyhow!("Bad JSON from GitHub"))?;
+
+    let tag = release["tag_name"]
+        .as_str()
+        .ok_or_else(|| anyhow!("No tag_name in GitHub release"))?
+        .to_string();
+
+    let asset_name = platform_asset_name();
+    let download_url = format!(
+        "https://github.com/aayushh-code/ccguilt/releases/download/{}/{}",
+        tag, asset_name
+    );
+
+    Ok((tag, download_url))
+}
+
+fn try_gitea() -> Result<(String, String)> {
+    let output = Command::new("curl")
+        .args(["-s", "-L", "--connect-timeout", "5", GITEA_API])
+        .output()
+        .map_err(|_| anyhow!("curl not found"))?;
+
+    if !output.status.success() {
+        return Err(anyhow!("Failed to reach Gitea update server."));
+    }
+
+    let releases: Vec<serde_json::Value> =
+        serde_json::from_slice(&output.stdout).map_err(|_| anyhow!("Bad JSON from Gitea"))?;
+
+    let latest = releases
+        .first()
+        .ok_or_else(|| anyhow!("No releases found on Gitea."))?;
+
+    let tag = latest["tag_name"]
+        .as_str()
+        .ok_or_else(|| anyhow!("Invalid release format."))?
+        .to_string();
+
+    // Gitea uses amd64 naming convention; browser_download_url uses unresolvable git.aeoru hostname
+    let expected = gitea_asset_name();
+    let download_url = latest["assets"]
+        .as_array()
+        .and_then(|assets| {
+            assets.iter().find_map(|a| {
+                let name = a["name"].as_str()?;
+                if name == expected {
+                    Some(format!(
+                        "http://192.168.100.195/aayush/ccguilt/releases/download/{}/{}",
+                        tag, name
+                    ))
+                } else {
+                    None
+                }
+            })
+        })
+        .ok_or_else(|| anyhow!("No binary '{}' in Gitea release {}.", expected, tag))?;
+
+    Ok((tag, download_url))
 }

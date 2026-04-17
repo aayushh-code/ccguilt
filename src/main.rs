@@ -10,6 +10,7 @@ mod dateparse;
 mod display;
 mod forecast;
 mod interactive;
+mod mcp;
 mod models;
 mod recommend;
 mod runtime;
@@ -32,6 +33,16 @@ fn main() -> Result<()> {
     // Handle self-update early exit
     if args.increase_guilt {
         return update::self_update();
+    }
+
+    // Handle MCP server early exit (spins up tokio runtime only for this path)
+    if args.mcp {
+        return tokio::runtime::Runtime::new()?.block_on(mcp::run_server());
+    }
+
+    // Handle one-shot MCP registration with Claude Code
+    if args.setup_mcp {
+        return mcp::setup_mcp();
     }
 
     // Handle shell completions early exit
