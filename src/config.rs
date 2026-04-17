@@ -105,25 +105,30 @@ pub const HAIKU_PRICING: PricingProfile = PricingProfile {
     cache_creation_per_mtok: 1.25,
 };
 
+/// GLM-5 pricing — Z.ai official (docs.z.ai/guides/overview/pricing)
+/// Cache write storage is free promotionally; billed as uncached input here.
 pub const GLM5_PRICING: PricingProfile = PricingProfile {
-    input_per_mtok: 0.50,
-    output_per_mtok: 1.50,
-    cache_read_per_mtok: 0.05,
-    cache_creation_per_mtok: 0.63,
+    input_per_mtok: 1.00,
+    output_per_mtok: 3.20,
+    cache_read_per_mtok: 0.20,
+    cache_creation_per_mtok: 1.00,
 };
 
+/// GLM-4.7 pricing — Z.ai official (docs.z.ai/guides/overview/pricing)
 pub const GLM47_PRICING: PricingProfile = PricingProfile {
-    input_per_mtok: 0.70,
-    output_per_mtok: 2.00,
-    cache_read_per_mtok: 0.07,
-    cache_creation_per_mtok: 0.88,
+    input_per_mtok: 0.60,
+    output_per_mtok: 2.20,
+    cache_read_per_mtok: 0.11,
+    cache_creation_per_mtok: 0.60,
 };
 
+/// DeepSeek R1 (deepseek-reasoner, V3.2 thinking mode) — DeepSeek official
+/// (api-docs.deepseek.com/quick_start/pricing). No separate cache creation fee.
 pub const DEEPSEEK_R1_PRICING: PricingProfile = PricingProfile {
-    input_per_mtok: 0.70,
-    output_per_mtok: 2.50,
-    cache_read_per_mtok: 0.14,
-    cache_creation_per_mtok: 0.88,
+    input_per_mtok: 0.28,
+    output_per_mtok: 0.42,
+    cache_read_per_mtok: 0.028,
+    cache_creation_per_mtok: 0.28,
 };
 
 pub const UNKNOWN_PRICING: PricingProfile = PricingProfile {
