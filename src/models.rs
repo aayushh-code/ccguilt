@@ -23,6 +23,9 @@ pub enum ModelTier {
     Opus,
     Sonnet,
     Haiku,
+    Glm5,
+    Glm47,
+    DeepSeekReasoner,
     Unknown,
 }
 
@@ -38,6 +41,12 @@ impl ModelTier {
             Some(ModelTier::Sonnet)
         } else if s_lower.contains("haiku") {
             Some(ModelTier::Haiku)
+        } else if s_lower.contains("glm-5") || s_lower.contains("glm5") {
+            Some(ModelTier::Glm5)
+        } else if s_lower.contains("glm-4") || s_lower.contains("glm4") {
+            Some(ModelTier::Glm47)
+        } else if s_lower.contains("deepseek-reasoner") || s_lower.contains("deepseek-r1") {
+            Some(ModelTier::DeepSeekReasoner)
         } else {
             Some(ModelTier::Unknown)
         }
@@ -48,6 +57,9 @@ impl ModelTier {
             ModelTier::Opus => "Opus",
             ModelTier::Sonnet => "Sonnet",
             ModelTier::Haiku => "Haiku",
+            ModelTier::Glm5 => "Glm5",
+            ModelTier::Glm47 => "Glm47",
+            ModelTier::DeepSeekReasoner => "DeepSeekReasoner",
             ModelTier::Unknown => "Unknown",
         }
     }
@@ -57,6 +69,9 @@ impl ModelTier {
             "Opus" => ModelTier::Opus,
             "Sonnet" => ModelTier::Sonnet,
             "Haiku" => ModelTier::Haiku,
+            "Glm5" => ModelTier::Glm5,
+            "Glm47" => ModelTier::Glm47,
+            "DeepSeekReasoner" => ModelTier::DeepSeekReasoner,
             _ => ModelTier::Unknown,
         }
     }
@@ -66,6 +81,9 @@ impl ModelTier {
             ModelTier::Opus => "Opus",
             ModelTier::Sonnet => "Sonnet",
             ModelTier::Haiku => "Haiku",
+            ModelTier::Glm5 => "GLM-5",
+            ModelTier::Glm47 => "GLM-4.7",
+            ModelTier::DeepSeekReasoner => "DeepSeek R1",
             ModelTier::Unknown => "Unknown",
         }
     }

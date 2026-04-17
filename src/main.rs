@@ -23,8 +23,8 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use colored::Colorize;
 
-use cli::{Args, Period};
-use data::discovery::ClaudeDataDir;
+use cli::{Args, Period, Source};
+use data::discovery::{ClaudeDataDir, OpenCodeDataDir};
 use runtime::RuntimeConfig;
 
 fn main() -> Result<()> {
@@ -75,17 +75,27 @@ fn main() -> Result<()> {
         None => ClaudeDataDir::default_path()?,
     };
 
-    if !claude_home.exists() {
-        eprintln!(
-            "{} No Claude Code data directory found at {}",
-            "Error:".red().bold(),
-            claude_home.display()
-        );
-        eprintln!("Are you sure you've used Claude Code? Lucky planet.");
+    let opencode_home = match &args.opencode_home {
+        Some(p) => p.clone(),
+        None => OpenCodeDataDir::default_path()?,
+    };
+
+    let claude_available = claude_home.exists();
+    let opencode_data_dir = OpenCodeDataDir::new(opencode_home);
+    let opencode_available = opencode_data_dir.exists();
+
+    if !claude_available && !opencode_available {
+        eprintln!("{} No data sources found. Checked:", "Error:".red().bold());
+        eprintln!("  - Claude Code: {}", claude_home.display());
+        eprintln!("  - OpenCode:    {}", opencode_data_dir.db_path().display());
+        eprintln!("Have you used any AI coding tool? Lucky planet.");
         std::process::exit(1);
     }
 
-    let data_dir = ClaudeDataDir::new(claude_home);
+    let include_claude = args.source != Source::OpenCode && claude_available;
+    let include_opencode = args.source != Source::Claude && opencode_available;
+
+    let data_dir = ClaudeDataDir::new(claude_home.clone());
 
     let since = args
         .since
@@ -107,10 +117,21 @@ fn main() -> Result<()> {
         std::process::exit(1);
     }
 
-    let records = if args.fast {
+    let records = if include_claude && args.fast {
         fast_path(&args, &data_dir, &rc)?
+    } else if include_claude || include_opencode {
+        unified_scan(
+            &args,
+            &data_dir,
+            &opencode_data_dir,
+            include_claude,
+            include_opencode,
+            since,
+            until,
+            &rc,
+        )?
     } else {
-        deep_scan(&args, &data_dir, since, until, &rc)?
+        Vec::new()
     };
 
     if records.is_empty() {
@@ -288,14 +309,15 @@ fn main() -> Result<()> {
             );
         }
     } else {
-        let file_count = if args.fast {
-            1
-        } else {
-            data_dir.jsonl_files(args.project.as_deref()).len()
-        };
-
         display::print_header();
-        display::print_metadata(&data_dir, file_count, args.project.as_deref(), args.fast);
+        display::print_multi_source_metadata(
+            &data_dir,
+            &opencode_data_dir,
+            include_claude,
+            include_opencode,
+            args.project.as_deref(),
+            args.fast,
+        );
         display::table::render_table(&buckets, &display_opts);
         if args.chart {
             display::chart::render_chart(&buckets);
@@ -373,41 +395,53 @@ fn fast_path(
     })
 }
 
-fn deep_scan(
+#[allow(clippy::too_many_arguments)]
+fn unified_scan(
     args: &Args,
     data_dir: &ClaudeDataDir,
+    opencode_dir: &OpenCodeDataDir,
+    include_claude: bool,
+    include_opencode: bool,
     since: Option<DateTime<Utc>>,
     until: Option<DateTime<Utc>>,
     rc: &RuntimeConfig,
 ) -> Result<Vec<models::TokenRecord>> {
-    let files = if let Some(ref pat) = args.project_regex {
-        data_dir.jsonl_files_regex(pat)?
-    } else {
-        data_dir.jsonl_files(args.project.as_deref())
-    };
-
-    if files.is_empty() {
-        eprintln!(
-            "{} No session files found in {}",
-            "Error:".red().bold(),
-            data_dir.projects_dir().display()
-        );
-        eprintln!("Your Claude data directory exists but contains no sessions.");
-        eprintln!("Either you're a Digital Saint or something is misconfigured.");
-        std::process::exit(1);
-    }
-
-    // Try SQLite-backed incremental path
     if !args.no_db {
         let db_path = data_dir.base.join("ccguilt.db");
-        match data::db::load_records(
+
+        let claude_files = if include_claude {
+            if let Some(ref pat) = args.project_regex {
+                data_dir.jsonl_files_regex(pat)?
+            } else {
+                data_dir.jsonl_files(args.project.as_deref())
+            }
+        } else {
+            Vec::new()
+        };
+
+        let opencode_db = opencode_dir.db_path();
+        let opencode_path = if include_opencode {
+            Some(opencode_db.as_path())
+        } else {
+            None
+        };
+
+        let source_filter = match args.source {
+            Source::Claude => Some("claude"),
+            Source::OpenCode => Some("opencode"),
+            Source::All => None,
+        };
+
+        match data::db::load_all_records(
             &db_path,
-            &files,
+            &claude_files,
+            opencode_path,
             since,
             until,
             args.project.as_deref(),
             args.rebuild_db,
             rc.quiet,
+            source_filter,
         ) {
             Ok(records) => {
                 if !rc.quiet {
@@ -428,7 +462,7 @@ fn deep_scan(
             Err(e) => {
                 if rc.verbose {
                     eprintln!(
-                        "  {} SQLite cache unavailable ({}), falling back to JSONL scan",
+                        "  {} SQLite cache unavailable ({}), falling back to direct scan",
                         ">>".yellow().bold(),
                         e
                     );
@@ -437,20 +471,57 @@ fn deep_scan(
         }
     }
 
-    // Fallback: direct JSONL parsing
-    if !rc.quiet {
-        eprintln!(
-            "  {} Deep scan: parsing {} session files...",
-            ">>".green().bold(),
-            files.len()
-        );
+    let mut records = Vec::new();
+
+    if include_claude {
+        let files = if let Some(ref pat) = args.project_regex {
+            data_dir.jsonl_files_regex(pat)?
+        } else {
+            data_dir.jsonl_files(args.project.as_deref())
+        };
+
+        if !files.is_empty() {
+            if !rc.quiet {
+                eprintln!(
+                    "  {} Deep scan: parsing {} Claude session files...",
+                    ">>".green().bold(),
+                    files.len()
+                );
+            }
+            let claude_records =
+                data::jsonl::parse_jsonl_files(&files, since, until, args.project.as_deref())?;
+            records.extend(claude_records);
+        }
     }
 
-    let records = data::jsonl::parse_jsonl_files(&files, since, until, args.project.as_deref())?;
+    if include_opencode {
+        if !rc.quiet {
+            eprintln!("  {} Reading OpenCode database...", ">>".green().bold());
+        }
+        match data::opencode::parse_opencode_db(
+            &opencode_dir.db_path(),
+            since,
+            until,
+            args.project.as_deref(),
+        ) {
+            Ok(oc_records) => records.extend(oc_records),
+            Err(e) => {
+                if rc.verbose {
+                    eprintln!(
+                        "  {} OpenCode database read failed: {}",
+                        ">>".yellow().bold(),
+                        e
+                    );
+                }
+            }
+        }
+    }
+
+    records.sort_by_key(|r| r.timestamp);
 
     if !rc.quiet {
         eprintln!(
-            "  {} Found {} token records",
+            "  {} Found {} total token records",
             ">>".green().bold(),
             records.len()
         );

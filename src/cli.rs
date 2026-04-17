@@ -43,6 +43,14 @@ pub struct Args {
     #[arg(long, env = "CLAUDE_HOME")]
     pub claude_home: Option<PathBuf>,
 
+    /// Custom OpenCode data directory (default: ~/.local/share/opencode)
+    #[arg(long, env = "OPENCODE_HOME")]
+    pub opencode_home: Option<PathBuf>,
+
+    /// Data source(s) to scan (default: all)
+    #[arg(long, value_enum, default_value = "all")]
+    pub source: Source,
+
     // ── Analysis ──
     /// Show per-model token breakdown within each period
     #[arg(long)]
@@ -225,4 +233,12 @@ pub enum SortField {
 pub enum GroupBy {
     Project,
     Model,
+}
+
+#[derive(ValueEnum, Clone, Debug, Copy, PartialEq, Eq, Default)]
+pub enum Source {
+    #[default]
+    All,
+    Claude,
+    OpenCode,
 }

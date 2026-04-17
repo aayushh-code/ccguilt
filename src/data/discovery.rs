@@ -110,8 +110,30 @@ impl ClaudeDataDir {
     }
 }
 
-/// Decode Claude Code's project directory naming convention
-/// "-home-it8-Repos" → "/home/it8/Repos"
+pub struct OpenCodeDataDir {
+    pub base: PathBuf,
+}
+
+impl OpenCodeDataDir {
+    pub fn new(base: PathBuf) -> Self {
+        Self { base }
+    }
+
+    pub fn default_path() -> Result<PathBuf> {
+        let home =
+            dirs::home_dir().ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
+        Ok(home.join(".local").join("share").join("opencode"))
+    }
+
+    pub fn db_path(&self) -> PathBuf {
+        self.base.join("opencode.db")
+    }
+
+    pub fn exists(&self) -> bool {
+        self.db_path().exists()
+    }
+}
+
 pub fn decode_project_name(encoded: &str) -> String {
     if encoded.is_empty() {
         return String::new();
