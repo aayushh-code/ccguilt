@@ -110,6 +110,7 @@ pub fn parse_opencode_db(
             session_id,
             project_name,
             model: tier,
+            model_raw: model_id.to_string(),
             input_tokens: input,
             output_tokens: output,
             cache_creation_input_tokens: cache_write,

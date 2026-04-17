@@ -232,5 +232,6 @@ fn guilt_table_color(level: GuiltLevel) -> comfy_table::Color {
         GuiltLevel::EcoTerrorist => comfy_table::Color::Red,
         GuiltLevel::PlanetIncinerator => comfy_table::Color::DarkRed,
         GuiltLevel::HeatDeathAccelerator => comfy_table::Color::Magenta,
+        GuiltLevel::Himanshu => comfy_table::Color::White,
     }
 }

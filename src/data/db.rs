@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use crate::models::{ModelTier, TokenRecord};
 
 #[allow(dead_code)]
-const SCHEMA_VERSION: i64 = 2;
+const SCHEMA_VERSION: i64 = 3;
 
 struct FileInfo {
     path: PathBuf,
@@ -34,7 +34,7 @@ fn ensure_schema(conn: &Connection) -> Result<()> {
         .exists([])?;
 
     if !has_schema {
-        create_schema_v2(conn)?;
+        create_schema_v3(conn)?;
         return Ok(());
     }
 
@@ -44,15 +44,18 @@ fn ensure_schema(conn: &Connection) -> Result<()> {
     if version < 2 {
         migrate_v1_to_v2(conn)?;
     }
+    if version < 3 {
+        migrate_v2_to_v3(conn)?;
+    }
 
     Ok(())
 }
 
-fn create_schema_v2(conn: &Connection) -> Result<()> {
+fn create_schema_v3(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         "
         CREATE TABLE schema_version (version INTEGER NOT NULL);
-        INSERT INTO schema_version (version) VALUES (2);
+        INSERT INTO schema_version (version) VALUES (3);
 
         CREATE TABLE ingested_files (
             file_path   TEXT PRIMARY KEY,
@@ -67,6 +70,7 @@ fn create_schema_v2(conn: &Connection) -> Result<()> {
             session_id                  TEXT NOT NULL,
             project_name                TEXT NOT NULL,
             model                       TEXT NOT NULL,
+            model_raw                   TEXT NOT NULL DEFAULT '',
             input_tokens                INTEGER NOT NULL,
             output_tokens               INTEGER NOT NULL,
             cache_creation_input_tokens INTEGER NOT NULL,
@@ -114,6 +118,19 @@ fn migrate_v1_to_v2(conn: &Connection) -> Result<()> {
         );
 
         UPDATE schema_version SET version = 2;
+        ",
+    )?;
+    Ok(())
+}
+
+/// v2 → v3: add `model_raw` column for LiteLLM-style per-model pricing lookup.
+/// Existing rows get empty string — cost calc will fall back to tier-based pricing
+/// for old rows, and new rows (re-ingested from JSONL) will have the raw name.
+fn migrate_v2_to_v3(conn: &Connection) -> Result<()> {
+    conn.execute_batch(
+        "
+        ALTER TABLE token_records ADD COLUMN model_raw TEXT NOT NULL DEFAULT '';
+        UPDATE schema_version SET version = 3;
         ",
     )?;
     Ok(())
@@ -176,11 +193,11 @@ fn insert_records(
 ) -> Result<()> {
     let mut stmt = conn.prepare_cached(
         "INSERT INTO token_records (
-            timestamp, session_id, project_name, model,
+            timestamp, session_id, project_name, model, model_raw,
             input_tokens, output_tokens,
             cache_creation_input_tokens, cache_read_input_tokens,
             source_file, source_type
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'claude')",
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'claude')",
     )?;
 
     for r in records {
@@ -189,6 +206,7 @@ fn insert_records(
             r.session_id,
             r.project_name,
             r.model.as_db_str(),
+            r.model_raw,
             r.input_tokens,
             r.output_tokens,
             r.cache_creation_input_tokens,
@@ -215,7 +233,7 @@ fn query_records(
     source_type_filter: Option<&str>,
 ) -> Result<Vec<TokenRecord>> {
     let mut sql = String::from(
-        "SELECT timestamp, session_id, project_name, model,
+        "SELECT timestamp, session_id, project_name, model, model_raw,
                 input_tokens, output_tokens,
                 cache_creation_input_tokens, cache_read_input_tokens
          FROM token_records WHERE 1=1",
@@ -258,10 +276,11 @@ fn query_records(
                 session_id: row.get(1)?,
                 project_name: row.get(2)?,
                 model: ModelTier::from_db_str(&row.get::<_, String>(3)?),
-                input_tokens: row.get(4)?,
-                output_tokens: row.get(5)?,
-                cache_creation_input_tokens: row.get(6)?,
-                cache_read_input_tokens: row.get(7)?,
+                model_raw: row.get::<_, String>(4).unwrap_or_default(),
+                input_tokens: row.get(5)?,
+                output_tokens: row.get(6)?,
+                cache_creation_input_tokens: row.get(7)?,
+                cache_read_input_tokens: row.get(8)?,
             })
         })?
         .filter_map(|r| r.ok())
@@ -382,11 +401,11 @@ pub fn ingest_opencode(conn: &Connection, opencode_db_path: &Path, quiet: bool) 
 
     let mut insert_stmt = conn.prepare_cached(
         "INSERT INTO token_records (
-            timestamp, session_id, project_name, model,
+            timestamp, session_id, project_name, model, model_raw,
             input_tokens, output_tokens,
             cache_creation_input_tokens, cache_read_input_tokens,
             source_file, source_type
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 'opencode')",
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'opencode')",
     )?;
 
     let mut msg_stmt = conn.prepare_cached(
@@ -457,6 +476,7 @@ pub fn ingest_opencode(conn: &Connection, opencode_db_path: &Path, quiet: bool) 
             session_id,
             project_name,
             tier.as_db_str(),
+            model_id,
             input,
             output,
             cache_write,

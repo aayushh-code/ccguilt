@@ -155,6 +155,7 @@ pub fn parse_single_file(
             session_id: raw.session_id.clone().unwrap_or_else(|| session_id.clone()),
             project_name: project_name.clone(),
             model: tier,
+            model_raw: model_str.clone(),
             input_tokens: input,
             output_tokens: output,
             cache_creation_input_tokens: cache_create,

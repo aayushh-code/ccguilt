@@ -1,7 +1,7 @@
 use chrono::{Datelike, IsoWeek};
 use indexmap::IndexMap;
 
-use crate::calc::cost::calculate_total_cost;
+use crate::calc::cost::accumulate_record_cost;
 use crate::calc::impact::{calculate_impact_with, determine_guilt};
 use crate::cli::Period;
 use crate::models::{ModelTier, TokenRecord, UsageBucket};
@@ -123,6 +123,10 @@ fn add_record_to_bucket(bucket: &mut UsageBucket, record: &TokenRecord) {
     model_entry.cache_creation_tokens += record.cache_creation_input_tokens;
     model_entry.cache_read_tokens += record.cache_read_input_tokens;
 
+    // Cost is accumulated per-record so each record uses LiteLLM pricing
+    // keyed on its exact model_raw string (falling back to tier).
+    accumulate_record_cost(&mut bucket.cost, record);
+
     let model_name = record.model.display_name().to_string();
     if !bucket.models_used.contains(&model_name) {
         bucket.models_used.push(model_name);
@@ -130,7 +134,7 @@ fn add_record_to_bucket(bucket: &mut UsageBucket, record: &TokenRecord) {
 }
 
 fn finalize_bucket(bucket: &mut UsageBucket, co2_kg_per_kwh: f64, pue: f64) {
-    bucket.cost = calculate_total_cost(&bucket.tokens);
+    // bucket.cost is already populated per-record during add_record_to_bucket.
     bucket.impact = calculate_impact_with(&bucket.tokens, co2_kg_per_kwh, pue);
     bucket.guilt = determine_guilt(&bucket.impact);
 }
@@ -155,6 +159,7 @@ pub fn fast_path_total(
             session_id: "aggregate".to_string(),
             project_name: "all".to_string(),
             model: tier,
+            model_raw: model_name.clone(),
             input_tokens: usage.input_tokens,
             output_tokens: usage.output_tokens,
             cache_creation_input_tokens: usage.cache_creation_input_tokens,
@@ -210,6 +215,7 @@ pub fn fast_path_daily(
                 session_id: format!("fast-{}", day.date),
                 project_name: "all".to_string(),
                 model: tier,
+                model_raw: model_name.clone(),
                 input_tokens: (day_total as f64 * input_ratio) as u64,
                 output_tokens: (day_total as f64 * output_ratio) as u64,
                 cache_creation_input_tokens: (day_total as f64 * cache_create_ratio) as u64,

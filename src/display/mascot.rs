@@ -17,6 +17,7 @@ fn colorize_art(line: &str, level: GuiltLevel) -> String {
         GuiltLevel::EcoTerrorist => line.red().to_string(),
         GuiltLevel::PlanetIncinerator => line.truecolor(139, 0, 0).to_string(),
         GuiltLevel::HeatDeathAccelerator => line.magenta().to_string(),
+        GuiltLevel::Himanshu => line.white().bold().to_string(),
     }
 }
 
@@ -90,6 +91,11 @@ fn mascot_art(level: GuiltLevel) -> &'static str {
  / .||. \
 |  ||||  |
  \______/
+"#
+        }
+        GuiltLevel::Himanshu => {
+            r#"
+    Himanshu
 "#
         }
     }

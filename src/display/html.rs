@@ -61,6 +61,7 @@ pub fn render_html<W: Write>(buckets: &[UsageBucket], writer: &mut W) -> anyhow:
             crate::models::GuiltLevel::EcoTerrorist => "guilt-terrorist",
             crate::models::GuiltLevel::PlanetIncinerator => "guilt-incinerator",
             crate::models::GuiltLevel::HeatDeathAccelerator => "guilt-heatdeath",
+            crate::models::GuiltLevel::Himanshu => "guilt-himanshu",
         };
         writeln!(
             writer,
@@ -113,6 +114,7 @@ pub fn render_html<W: Write>(buckets: &[UsageBucket], writer: &mut W) -> anyhow:
                 crate::models::GuiltLevel::EcoTerrorist => "#ff0000",
                 crate::models::GuiltLevel::PlanetIncinerator => "#cc0000",
                 crate::models::GuiltLevel::HeatDeathAccelerator => "#cc00cc",
+                crate::models::GuiltLevel::Himanshu => "#ffffff",
             };
             writeln!(
                 writer,

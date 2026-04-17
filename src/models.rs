@@ -11,6 +11,9 @@ pub struct TokenRecord {
     pub session_id: String,
     pub project_name: String,
     pub model: ModelTier,
+    /// Raw model name as recorded by the data source (e.g. "claude-opus-4-6").
+    /// Used to look up exact pricing via LiteLLM; falls back to tier-based if absent.
+    pub model_raw: String,
     pub input_tokens: u64,
     pub output_tokens: u64,
     pub cache_creation_input_tokens: u64,
@@ -165,6 +168,7 @@ pub enum GuiltLevel {
     EcoTerrorist,
     PlanetIncinerator,
     HeatDeathAccelerator,
+    Himanshu,
 }
 
 /// Fast-path data from stats-cache.json

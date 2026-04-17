@@ -83,6 +83,7 @@ fn render_bar_chart(
             GuiltLevel::EcoTerrorist => bar.red(),
             GuiltLevel::PlanetIncinerator => bar.truecolor(139, 0, 0),
             GuiltLevel::HeatDeathAccelerator => bar.magenta(),
+            GuiltLevel::Himanshu => bar.white().bold(),
         };
 
         println!(
