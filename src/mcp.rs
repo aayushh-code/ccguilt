@@ -351,8 +351,8 @@ pub fn setup_mcp() -> Result<()> {
     }
 
     // Resolve absolute path to current executable so Claude Code spawns the right binary
-    let self_exe = std::env::current_exe()
-        .context("could not determine current ccguilt executable path")?;
+    let self_exe =
+        std::env::current_exe().context("could not determine current ccguilt executable path")?;
 
     // Idempotent: remove any existing registration (user OR local scope) so re-running this
     // upgrades a stale path or scope without complaint.

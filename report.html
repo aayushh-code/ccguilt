@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code Guilt Trip Report</title>
+<style>
+  body { background: #1a1a2e; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 2em; }
+  h1 { color: #ff4444; text-align: center; }
+  h2 { color: #ff6666; }
+  table { border-collapse: collapse; width: 100%; margin: 1em 0; }
+  th { background: #16213e; color: #ff4444; padding: 0.7em; text-align: right; border-bottom: 2px solid #ff4444; }
+  th:first-child { text-align: left; }
+  td { padding: 0.5em 0.7em; border-bottom: 1px solid #333; text-align: right; }
+  td:first-child { text-align: left; }
+  tr:hover { background: #16213e; }
+  .total { font-weight: bold; border-top: 2px solid #ff4444; }
+  .bar { height: 18px; display: inline-block; border-radius: 2px; }
+  .chart-row { display: flex; align-items: center; margin: 4px 0; }
+  .chart-label { width: 120px; text-align: right; padding-right: 8px; font-size: 0.85em; color: #aaa; }
+  .chart-value { padding-left: 8px; font-size: 0.85em; color: #aaa; }
+  .guilt-saint { color: #00cc00; }
+  .guilt-curious { color: #00cccc; }
+  .guilt-trimmer { color: #cccc00; }
+  .guilt-flattener { color: #ff8800; }
+  .guilt-terrorist { color: #ff0000; }
+  .guilt-incinerator { color: #cc0000; }
+  .guilt-heatdeath { color: #cc00cc; }
+  .footer { margin-top: 2em; color: #666; font-size: 0.85em; text-align: center; }
+</style>
+</head>
+<body>
+<h1>CLAUDE CODE GUILT TRIP</h1>
+<p style="text-align:center;color:#ff6666;">An environmental impact report nobody asked for</p>
+
+<table>
+<thead>
+<tr><th>Period</th><th>Tokens</th><th>Cost</th><th>Energy</th><th>CO2</th><th>Water</th><th>Trees</th><th>Guilt</th></tr>
+</thead>
+<tbody>
+<tr><td>2026-03-02</td><td>65.0M</td><td>$171.20</td><td>103.1 kWh</td><td>40.2 kg</td><td>185.6 L</td><td>1.83</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-03</td><td>102.8M</td><td>$239.29</td><td>147.7 kWh</td><td>57.6 kg</td><td>265.9 L</td><td>2.62</td><td class="guilt-heatdeath">Heat Death Accelerator</td></tr>
+<tr><td>2026-03-06</td><td>71.9M</td><td>$184.02</td><td>110.4 kWh</td><td>43.1 kg</td><td>198.7 L</td><td>1.96</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-07</td><td>96.8M</td><td>$244.43</td><td>148.0 kWh</td><td>57.7 kg</td><td>266.4 L</td><td>2.62</td><td class="guilt-heatdeath">Heat Death Accelerator</td></tr>
+<tr><td>2026-03-09</td><td>81.2M</td><td>$215.41</td><td>129.2 kWh</td><td>50.4 kg</td><td>232.6 L</td><td>2.29</td><td class="guilt-heatdeath">Heat Death Accelerator</td></tr>
+<tr><td>2026-03-10</td><td>86.5M</td><td>$247.99</td><td>143.7 kWh</td><td>56.0 kg</td><td>258.6 L</td><td>2.55</td><td class="guilt-heatdeath">Heat Death Accelerator</td></tr>
+<tr><td>2026-03-11</td><td>140.3M</td><td>$323.29</td><td>195.6 kWh</td><td>76.3 kg</td><td>352.0 L</td><td>3.47</td><td class="guilt-heatdeath">Heat Death Accelerator</td></tr>
+<tr><td>2026-03-12</td><td>27.8M</td><td>$83.80</td><td>48.3 kWh</td><td>18.8 kg</td><td>86.9 L</td><td>0.8558</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-13</td><td>62.7M</td><td>$159.67</td><td>95.9 kWh</td><td>37.4 kg</td><td>172.6 L</td><td>1.70</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-14</td><td>86.0M</td><td>$200.36</td><td>124.1 kWh</td><td>48.4 kg</td><td>223.4 L</td><td>2.20</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-18</td><td>45.3M</td><td>$110.44</td><td>67.5 kWh</td><td>26.3 kg</td><td>121.4 L</td><td>1.20</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-19</td><td>75.4M</td><td>$180.37</td><td>111.6 kWh</td><td>43.5 kg</td><td>200.9 L</td><td>1.98</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-20</td><td>1.1B</td><td>$3227</td><td>1.9 MWh</td><td>744.5 kg</td><td>3.4 m³</td><td>33.84</td><td class="guilt-heatdeath">Heat Death Accelerator</td></tr>
+<tr><td>2026-03-21</td><td>344.3M</td><td>$996.77</td><td>586.7 kWh</td><td>228.8 kg</td><td>1.1 m³</td><td>10.40</td><td class="guilt-heatdeath">Heat Death Accelerator</td></tr>
+<tr><td>2026-03-23</td><td>26.8M</td><td>$82.45</td><td>49.8 kWh</td><td>19.4 kg</td><td>89.7 L</td><td>0.8829</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-24</td><td>14.4M</td><td>$45.79</td><td>28.2 kWh</td><td>11.0 kg</td><td>50.7 L</td><td>0.4996</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-25</td><td>49.1M</td><td>$116.95</td><td>71.0 kWh</td><td>27.7 kg</td><td>127.9 L</td><td>1.26</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-26</td><td>45.2M</td><td>$109.45</td><td>66.8 kWh</td><td>26.1 kg</td><td>120.2 L</td><td>1.18</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-27</td><td>69.7M</td><td>$161.11</td><td>98.9 kWh</td><td>38.6 kg</td><td>178.1 L</td><td>1.75</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-28</td><td>85.4M</td><td>$209.02</td><td>126.5 kWh</td><td>49.3 kg</td><td>227.7 L</td><td>2.24</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr><td>2026-03-31</td><td>17.0M</td><td>$49.60</td><td>28.2 kWh</td><td>11.0 kg</td><td>50.7 L</td><td>0.4991</td><td class="guilt-incinerator">Planet Incinerator</td></tr>
+<tr class="total"><td>TOTAL</td><td>2.7B</td><td>$7359</td><td>4.4 MWh</td><td>1.7 t</td><td>7.9 m³</td><td>77.82</td><td></td></tr>
+</tbody>
+</table>
+<h2>CO2 Emissions by Period</h2>
+<div class="chart-row"><span class="chart-label">2026-03-02</span><span class="bar" style="width:5.40169666438592%;background:#cc0000;"></span><span class="chart-value">40.2 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-03</span><span class="bar" style="width:7.739661750166768%;background:#cc00cc;"></span><span class="chart-value">57.6 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-06</span><span class="bar" style="width:5.783006984902784%;background:#cc0000;"></span><span class="chart-value">43.1 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-07</span><span class="bar" style="width:7.7534937355312366%;background:#cc00cc;"></span><span class="chart-value">57.7 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-09</span><span class="bar" style="width:6.7700450691176695%;background:#cc00cc;"></span><span class="chart-value">50.4 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-10</span><span class="bar" style="width:7.527679109895572%;background:#cc00cc;"></span><span class="chart-value">56.0 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-11</span><span class="bar" style="width:10.244953103724628%;background:#cc00cc;"></span><span class="chart-value">76.3 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-12</span><span class="bar" style="width:2.5291634992964966%;background:#cc0000;"></span><span class="chart-value">18.8 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-13</span><span class="bar" style="width:5.021919864750854%;background:#cc0000;"></span><span class="chart-value">37.4 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-14</span><span class="bar" style="width:6.502298166231221%;background:#cc0000;"></span><span class="chart-value">48.4 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-18</span><span class="bar" style="width:3.5336702150212687%;background:#cc0000;"></span><span class="chart-value">26.3 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-19</span><span class="bar" style="width:5.848315637579315%;background:#cc0000;"></span><span class="chart-value">43.5 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-20</span><span class="bar" style="width:100%;background:#cc00cc;"></span><span class="chart-value">744.5 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-21</span><span class="bar" style="width:30.733792854428177%;background:#cc00cc;"></span><span class="chart-value">228.8 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-23</span><span class="bar" style="width:2.6091980387721057%;background:#cc0000;"></span><span class="chart-value">19.4 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-24</span><span class="bar" style="width:1.47644803761081%;background:#cc0000;"></span><span class="chart-value">11.0 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-25</span><span class="bar" style="width:3.721513761204589%;background:#cc0000;"></span><span class="chart-value">27.7 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-26</span><span class="bar" style="width:3.4997032971574784%;background:#cc0000;"></span><span class="chart-value">26.1 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-27</span><span class="bar" style="width:5.182848346804467%;background:#cc0000;"></span><span class="chart-value">38.6 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-28</span><span class="bar" style="width:6.626331382136944%;background:#cc0000;"></span><span class="chart-value">49.3 kg</span></div>
+<div class="chart-row"><span class="chart-label">2026-03-31</span><span class="bar" style="width:1.474796891419189%;background:#cc0000;"></span><span class="chart-value">11.0 kg</span></div>
+<div class="footer">Sources: Jegham et al. 2025, EPA eGRID 2024, Li et al. 2023, Luccioni et al. 2023, USDA Forestry, IEA 2024</div>
+</body>
+</html>
