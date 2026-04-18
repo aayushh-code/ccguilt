@@ -43,7 +43,9 @@ fn table() -> &'static HashMap<String, PricingProfile> {
                     PricingProfile {
                         input_per_mtok: input * 1_000_000.0,
                         output_per_mtok: output * 1_000_000.0,
-                        cache_read_per_mtok: e.cache_read_input_token_cost.unwrap_or(input * 0.1)
+                        cache_read_per_mtok: e
+                            .cache_read_input_token_cost
+                            .unwrap_or(input * 0.1)
                             * 1_000_000.0,
                         cache_creation_per_mtok: e
                             .cache_creation_input_token_cost
