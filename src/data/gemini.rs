@@ -108,6 +108,7 @@ pub fn parse_gemini_session(
             session_id: session.session_id.clone(),
             project_name: project_name.clone(),
             model: tier,
+            model_raw: model_str.to_string(),
             input_tokens: tokens.input,
             output_tokens: output_with_thoughts,
             cache_creation_input_tokens: 0,

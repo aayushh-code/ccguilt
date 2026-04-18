@@ -199,7 +199,8 @@ Each tool response may include a `tree_fallen_warning` field with a satirical me
 | Forest Flattener | < 2kg | "The squirrels are filing a class action" |
 | Eco-Terrorist | < 10kg | "Greenpeace has entered the chat. And they brought lawyers." |
 | Planet Incinerator | < 50kg | "Making Venus look hospitable" |
-| Heat Death Accelerator | 50kg+ | "The universe was going to end eventually. You're just helping it along." |
+| Heat Death Accelerator | < 500kg | "The universe was going to end eventually. You're just helping it along." |
+| Himanshu | 500kg+ | "Himanshu." |
 
 ## Example Output
 
@@ -233,6 +234,7 @@ All environmental calculations are backed by peer-reviewed research:
 - **Water usage**: Li et al. 2023 "Making AI Less Thirsty" (WUE: 1.8 L/kWh)
 - **Tree absorption**: EPA (22 kg CO2/tree/year), USDA Forestry (3,900 L water/tree/year)
 - **Data center PUE**: Industry average 1.2x overhead
+- **Model pricing**: Sourced from a snapshot of [LiteLLM's `model_prices_and_context_window.json`](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json) — same source `ccusage` uses — vendored at `vendor/litellm_prices.json`. Looked up by exact model name at runtime, with a tier-based fallback if a model isn't in the snapshot. Refresh with `scripts/refresh-litellm.sh`.
 
 ## How it reads your data
 

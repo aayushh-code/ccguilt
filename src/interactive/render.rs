@@ -128,6 +128,7 @@ fn draw_table(state: &AppState, stdout: &mut impl Write, w: usize, h: usize) -> 
             crate::models::GuiltLevel::EcoTerrorist => "Terrorist",
             crate::models::GuiltLevel::PlanetIncinerator => "Incinerator",
             crate::models::GuiltLevel::HeatDeathAccelerator => "HeatDeath",
+            crate::models::GuiltLevel::Himanshu => "Himanshu",
         };
 
         let row = format!(
@@ -210,6 +211,7 @@ fn draw_chart(state: &AppState, stdout: &mut impl Write, w: usize, h: usize) -> 
             crate::models::GuiltLevel::EcoTerrorist => style::Color::Red,
             crate::models::GuiltLevel::PlanetIncinerator => style::Color::DarkRed,
             crate::models::GuiltLevel::HeatDeathAccelerator => style::Color::Magenta,
+            crate::models::GuiltLevel::Himanshu => style::Color::White,
         };
 
         if is_selected {

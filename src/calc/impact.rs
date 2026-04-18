@@ -83,12 +83,14 @@ pub fn determine_guilt(impact: &ImpactSummary) -> GuiltRating {
             "Planet Incinerator",
             "Congratulations, you've personally contributed to making Venus look hospitable.",
         )
-    } else {
+    } else if co2 < 500_000.0 {
         (
             GuiltLevel::HeatDeathAccelerator,
             "Heat Death Accelerator",
             "The universe was going to end eventually. You're just... helping it along.",
         )
+    } else {
+        (GuiltLevel::Himanshu, "Himanshu", "Himanshu.")
     };
 
     GuiltRating {

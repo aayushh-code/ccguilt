@@ -220,7 +220,8 @@ pub fn random_remark(level: GuiltLevel) -> &'static str {
         }
         GuiltLevel::EcoTerrorist
         | GuiltLevel::PlanetIncinerator
-        | GuiltLevel::HeatDeathAccelerator => (NIHILISM_HIGH.to_vec(), ABSURDISM_HIGH.to_vec()),
+        | GuiltLevel::HeatDeathAccelerator
+        | GuiltLevel::Himanshu => (NIHILISM_HIGH.to_vec(), ABSURDISM_HIGH.to_vec()),
     };
 
     let pool: Vec<&str> = nihilism.into_iter().chain(absurdism).collect();
