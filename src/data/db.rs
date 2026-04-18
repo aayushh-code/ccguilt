@@ -190,15 +190,17 @@ fn insert_records(
     records: &[TokenRecord],
     mtime_secs: i64,
     file_size: i64,
+    source_type: &str,
 ) -> Result<()> {
-    let mut stmt = conn.prepare_cached(
+    let mut stmt = conn.prepare_cached(&format!(
         "INSERT INTO token_records (
             timestamp, session_id, project_name, model, model_raw,
             input_tokens, output_tokens,
             cache_creation_input_tokens, cache_read_input_tokens,
             source_file, source_type
-        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 'claude')",
-    )?;
+        ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, '{}')",
+        source_type
+    ))?;
 
     for r in records {
         stmt.execute(params![
@@ -329,7 +331,70 @@ fn ingest_claude_files(conn: &Connection, jsonl_files: &[PathBuf], quiet: bool) 
                 "DELETE FROM ingested_files WHERE file_path = ?1",
                 params![path_str],
             )?;
-            insert_records(conn, &path_str, records, fi.mtime_secs, fi.file_size)?;
+            insert_records(
+                conn,
+                &path_str,
+                records,
+                fi.mtime_secs,
+                fi.file_size,
+                "claude",
+            )?;
+        }
+
+        conn.execute_batch("COMMIT")?;
+    }
+
+    Ok(())
+}
+
+fn ingest_gemini_files(conn: &Connection, gemini_files: &[PathBuf], quiet: bool) -> Result<()> {
+    let disk_files = stat_files(gemini_files);
+    let need_ingestion_indices = classify_files(conn, &disk_files)?;
+
+    if !need_ingestion_indices.is_empty() {
+        if !quiet {
+            use colored::Colorize;
+            eprintln!(
+                "  {} Ingesting {} new/changed Gemini session files...",
+                ">>".green().bold(),
+                need_ingestion_indices.len()
+            );
+        }
+
+        let files_to_parse: Vec<&FileInfo> = need_ingestion_indices
+            .iter()
+            .map(|&i| &disk_files[i])
+            .collect();
+
+        let parsed: Vec<(&FileInfo, Vec<TokenRecord>)> = files_to_parse
+            .par_iter()
+            .filter_map(|fi| {
+                let records =
+                    crate::data::gemini::parse_gemini_session(&fi.path, None, None, None).ok()?;
+                Some((*fi, records))
+            })
+            .collect();
+
+        conn.execute_batch("BEGIN")?;
+
+        for (fi, records) in &parsed {
+            let path_str = fi.path.to_string_lossy().to_string();
+            conn.execute(
+                "DELETE FROM token_records WHERE source_file = ?1",
+                params![path_str],
+            )?;
+            conn.execute(
+                "DELETE FROM ingested_files WHERE file_path = ?1",
+                params![path_str],
+            )?;
+            insert_records(
+                conn,
+                &path_str,
+                records,
+                fi.mtime_secs,
+                fi.file_size,
+                "gemini",
+            )?;
         }
 
         conn.execute_batch("COMMIT")?;
@@ -540,6 +605,7 @@ pub fn load_all_records(
     ccguilt_db_path: &Path,
     jsonl_files: &[PathBuf],
     opencode_db_path: Option<&Path>,
+    gemini_files: &[PathBuf],
     since: Option<DateTime<Utc>>,
     until: Option<DateTime<Utc>>,
     project_filter: Option<&str>,
@@ -554,16 +620,20 @@ pub fn load_all_records(
     let conn = open_db(ccguilt_db_path)?;
     ensure_schema(&conn)?;
 
-    if source_type_filter != Some("opencode") {
+    if source_type_filter != Some("opencode") && source_type_filter != Some("gemini") {
         ingest_claude_files(&conn, jsonl_files, quiet)?;
     }
 
-    if source_type_filter != Some("claude") {
+    if source_type_filter != Some("claude") && source_type_filter != Some("gemini") {
         if let Some(oc_path) = opencode_db_path {
             if oc_path.exists() {
                 ingest_opencode(&conn, oc_path, quiet)?;
             }
         }
+    }
+
+    if source_type_filter != Some("claude") && source_type_filter != Some("opencode") {
+        ingest_gemini_files(&conn, gemini_files, quiet)?;
     }
 
     query_records(&conn, since, until, project_filter, source_type_filter)

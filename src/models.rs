@@ -29,6 +29,9 @@ pub enum ModelTier {
     Glm5,
     Glm47,
     DeepSeekReasoner,
+    Gemini25Pro,
+    Gemini31Pro,
+    GeminiFlash,
     Unknown,
 }
 
@@ -50,6 +53,14 @@ impl ModelTier {
             Some(ModelTier::Glm47)
         } else if s_lower.contains("deepseek-reasoner") || s_lower.contains("deepseek-r1") {
             Some(ModelTier::DeepSeekReasoner)
+        } else if s_lower.contains("gemini-3") || s_lower.contains("gemini3") {
+            Some(ModelTier::Gemini31Pro)
+        } else if s_lower.contains("gemini-2.5-pro") || s_lower.contains("gemini25pro") {
+            Some(ModelTier::Gemini25Pro)
+        } else if s_lower.contains("gemini") && s_lower.contains("flash") {
+            Some(ModelTier::GeminiFlash)
+        } else if s_lower.contains("gemini") {
+            Some(ModelTier::Gemini25Pro)
         } else {
             Some(ModelTier::Unknown)
         }
@@ -63,6 +74,9 @@ impl ModelTier {
             ModelTier::Glm5 => "Glm5",
             ModelTier::Glm47 => "Glm47",
             ModelTier::DeepSeekReasoner => "DeepSeekReasoner",
+            ModelTier::Gemini25Pro => "Gemini25Pro",
+            ModelTier::Gemini31Pro => "Gemini31Pro",
+            ModelTier::GeminiFlash => "GeminiFlash",
             ModelTier::Unknown => "Unknown",
         }
     }
@@ -75,6 +89,9 @@ impl ModelTier {
             "Glm5" => ModelTier::Glm5,
             "Glm47" => ModelTier::Glm47,
             "DeepSeekReasoner" => ModelTier::DeepSeekReasoner,
+            "Gemini25Pro" => ModelTier::Gemini25Pro,
+            "Gemini31Pro" => ModelTier::Gemini31Pro,
+            "GeminiFlash" => ModelTier::GeminiFlash,
             _ => ModelTier::Unknown,
         }
     }
@@ -87,6 +104,9 @@ impl ModelTier {
             ModelTier::Glm5 => "GLM-5",
             ModelTier::Glm47 => "GLM-4.7",
             ModelTier::DeepSeekReasoner => "DeepSeek R1",
+            ModelTier::Gemini25Pro => "Gemini 2.5 Pro",
+            ModelTier::Gemini31Pro => "Gemini 3.1 Pro",
+            ModelTier::GeminiFlash => "Gemini Flash",
             ModelTier::Unknown => "Unknown",
         }
     }

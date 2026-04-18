@@ -16,7 +16,7 @@ pub mod token_breakdown;
 
 use colored::Colorize;
 
-use crate::data::discovery::{ClaudeDataDir, OpenCodeDataDir};
+use crate::data::discovery::{ClaudeDataDir, GeminiDataDir, OpenCodeDataDir};
 use crate::forecast;
 use crate::models::UsageBucket;
 use crate::runtime::RuntimeConfig;
@@ -71,11 +71,14 @@ pub fn print_metadata(
     println!();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn print_multi_source_metadata(
     data_dir: &ClaudeDataDir,
     _opencode_dir: &OpenCodeDataDir,
+    _gemini_dir: &GeminiDataDir,
     include_claude: bool,
     include_opencode: bool,
+    include_gemini: bool,
     project_filter: Option<&str>,
     fast: bool,
 ) {
@@ -100,6 +103,10 @@ pub fn print_multi_source_metadata(
 
     if include_opencode {
         parts.push("OpenCode".cyan().to_string());
+    }
+
+    if include_gemini {
+        parts.push("Gemini CLI".magenta().to_string());
     }
 
     let source = parts.join(" + ");

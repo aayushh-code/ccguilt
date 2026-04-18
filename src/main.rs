@@ -24,7 +24,7 @@ use clap::Parser;
 use colored::Colorize;
 
 use cli::{Args, Period, Source};
-use data::discovery::{ClaudeDataDir, OpenCodeDataDir};
+use data::discovery::{ClaudeDataDir, GeminiDataDir, OpenCodeDataDir};
 use runtime::RuntimeConfig;
 
 fn main() -> Result<()> {
@@ -80,20 +80,32 @@ fn main() -> Result<()> {
         None => OpenCodeDataDir::default_path()?,
     };
 
+    let gemini_home = match &args.gemini_home {
+        Some(p) => p.clone(),
+        None => GeminiDataDir::default_path()?,
+    };
+
     let claude_available = claude_home.exists();
     let opencode_data_dir = OpenCodeDataDir::new(opencode_home);
     let opencode_available = opencode_data_dir.exists();
+    let gemini_data_dir = GeminiDataDir::new(gemini_home);
+    let gemini_available = gemini_data_dir.exists();
 
-    if !claude_available && !opencode_available {
+    if !claude_available && !opencode_available && !gemini_available {
         eprintln!("{} No data sources found. Checked:", "Error:".red().bold());
         eprintln!("  - Claude Code: {}", claude_home.display());
         eprintln!("  - OpenCode:    {}", opencode_data_dir.db_path().display());
+        eprintln!("  - Gemini CLI:  {}", gemini_data_dir.tmp_dir().display());
         eprintln!("Have you used any AI coding tool? Lucky planet.");
         std::process::exit(1);
     }
 
-    let include_claude = args.source != Source::OpenCode && claude_available;
-    let include_opencode = args.source != Source::Claude && opencode_available;
+    let include_claude =
+        args.source != Source::OpenCode && args.source != Source::Gemini && claude_available;
+    let include_opencode =
+        args.source != Source::Claude && args.source != Source::Gemini && opencode_available;
+    let include_gemini =
+        args.source != Source::Claude && args.source != Source::OpenCode && gemini_available;
 
     let data_dir = ClaudeDataDir::new(claude_home.clone());
 
@@ -119,13 +131,15 @@ fn main() -> Result<()> {
 
     let records = if include_claude && args.fast {
         fast_path(&args, &data_dir, &rc)?
-    } else if include_claude || include_opencode {
+    } else if include_claude || include_opencode || include_gemini {
         unified_scan(
             &args,
             &data_dir,
             &opencode_data_dir,
+            &gemini_data_dir,
             include_claude,
             include_opencode,
+            include_gemini,
             since,
             until,
             &rc,
@@ -313,8 +327,10 @@ fn main() -> Result<()> {
         display::print_multi_source_metadata(
             &data_dir,
             &opencode_data_dir,
+            &gemini_data_dir,
             include_claude,
             include_opencode,
+            include_gemini,
             args.project.as_deref(),
             args.fast,
         );
@@ -400,8 +416,10 @@ fn unified_scan(
     args: &Args,
     data_dir: &ClaudeDataDir,
     opencode_dir: &OpenCodeDataDir,
+    gemini_dir: &GeminiDataDir,
     include_claude: bool,
     include_opencode: bool,
+    include_gemini: bool,
     since: Option<DateTime<Utc>>,
     until: Option<DateTime<Utc>>,
     rc: &RuntimeConfig,
@@ -426,9 +444,16 @@ fn unified_scan(
             None
         };
 
+        let gemini_files = if include_gemini {
+            gemini_dir.session_files(args.project.as_deref())
+        } else {
+            Vec::new()
+        };
+
         let source_filter = match args.source {
             Source::Claude => Some("claude"),
             Source::OpenCode => Some("opencode"),
+            Source::Gemini => Some("gemini"),
             Source::All => None,
         };
 
@@ -436,6 +461,7 @@ fn unified_scan(
             &db_path,
             &claude_files,
             opencode_path,
+            &gemini_files,
             since,
             until,
             args.project.as_deref(),
@@ -512,6 +538,31 @@ fn unified_scan(
                         ">>".yellow().bold(),
                         e
                     );
+                }
+            }
+        }
+    }
+
+    if include_gemini {
+        let files = gemini_dir.session_files(args.project.as_deref());
+        if !files.is_empty() {
+            if !rc.quiet {
+                eprintln!(
+                    "  {} Reading {} Gemini CLI session files...",
+                    ">>".green().bold(),
+                    files.len()
+                );
+            }
+            match data::gemini::parse_gemini_files(&files, since, until, args.project.as_deref()) {
+                Ok(gemini_records) => records.extend(gemini_records),
+                Err(e) => {
+                    if rc.verbose {
+                        eprintln!(
+                            "  {} Gemini session parse failed: {}",
+                            ">>".yellow().bold(),
+                            e
+                        );
+                    }
                 }
             }
         }

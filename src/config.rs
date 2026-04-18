@@ -54,6 +54,27 @@ pub const DEEPSEEK_R1_ENERGY: EnergyProfile = EnergyProfile {
     cache_creation_multiplier: 1.0,
 };
 
+pub const GEMINI_25_PRO_ENERGY: EnergyProfile = EnergyProfile {
+    wh_per_input_token: 0.00045,
+    wh_per_output_token: 0.00045,
+    cache_read_multiplier: 0.10,
+    cache_creation_multiplier: 1.0,
+};
+
+pub const GEMINI_31_PRO_ENERGY: EnergyProfile = EnergyProfile {
+    wh_per_input_token: 0.00035,
+    wh_per_output_token: 0.00035,
+    cache_read_multiplier: 0.10,
+    cache_creation_multiplier: 1.0,
+};
+
+pub const GEMINI_FLASH_ENERGY: EnergyProfile = EnergyProfile {
+    wh_per_input_token: 0.00015,
+    wh_per_output_token: 0.00015,
+    cache_read_multiplier: 0.10,
+    cache_creation_multiplier: 1.0,
+};
+
 pub const UNKNOWN_ENERGY: EnergyProfile = EnergyProfile {
     wh_per_input_token: 0.00034,
     wh_per_output_token: 0.00034,
@@ -69,6 +90,9 @@ pub fn energy_profile(tier: ModelTier) -> &'static EnergyProfile {
         ModelTier::Glm5 => &GLM5_ENERGY,
         ModelTier::Glm47 => &GLM47_ENERGY,
         ModelTier::DeepSeekReasoner => &DEEPSEEK_R1_ENERGY,
+        ModelTier::Gemini25Pro => &GEMINI_25_PRO_ENERGY,
+        ModelTier::Gemini31Pro => &GEMINI_31_PRO_ENERGY,
+        ModelTier::GeminiFlash => &GEMINI_FLASH_ENERGY,
         ModelTier::Unknown => &UNKNOWN_ENERGY,
     }
 }
@@ -131,6 +155,27 @@ pub const DEEPSEEK_R1_PRICING: PricingProfile = PricingProfile {
     cache_creation_per_mtok: 0.28,
 };
 
+pub const GEMINI_25_PRO_PRICING: PricingProfile = PricingProfile {
+    input_per_mtok: 1.25,
+    output_per_mtok: 10.0,
+    cache_read_per_mtok: 0.315,
+    cache_creation_per_mtok: 1.25,
+};
+
+pub const GEMINI_31_PRO_PRICING: PricingProfile = PricingProfile {
+    input_per_mtok: 1.25,
+    output_per_mtok: 10.0,
+    cache_read_per_mtok: 0.315,
+    cache_creation_per_mtok: 1.25,
+};
+
+pub const GEMINI_FLASH_PRICING: PricingProfile = PricingProfile {
+    input_per_mtok: 0.15,
+    output_per_mtok: 0.60,
+    cache_read_per_mtok: 0.0375,
+    cache_creation_per_mtok: 0.15,
+};
+
 pub const UNKNOWN_PRICING: PricingProfile = PricingProfile {
     input_per_mtok: 3.0,
     output_per_mtok: 15.0,
@@ -146,6 +191,9 @@ pub fn pricing_profile(tier: ModelTier) -> &'static PricingProfile {
         ModelTier::Glm5 => &GLM5_PRICING,
         ModelTier::Glm47 => &GLM47_PRICING,
         ModelTier::DeepSeekReasoner => &DEEPSEEK_R1_PRICING,
+        ModelTier::Gemini25Pro => &GEMINI_25_PRO_PRICING,
+        ModelTier::Gemini31Pro => &GEMINI_31_PRO_PRICING,
+        ModelTier::GeminiFlash => &GEMINI_FLASH_PRICING,
         ModelTier::Unknown => &UNKNOWN_PRICING,
     }
 }
